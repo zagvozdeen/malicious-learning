@@ -96,7 +96,11 @@ func (s *Service) Run() {
 func (s *Service) getRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /", s.index)
+	if !s.cfg.IsProduction {
+		mux.HandleFunc("GET /", s.index)
+		mux.Handle("GET /node_modules/", http.StripPrefix("/node_modules/", http.FileServer(http.Dir("node_modules"))))
+	}
+
 	mux.HandleFunc("POST /api/auth", s.login)
 	mux.HandleFunc("POST /api/test-session", s.auth(s.createTestSession))
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
@@ -109,6 +113,8 @@ func (s *Service) index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	query := r.URL.Query()
 
 	shuffle, err := parseBool(query.Get("shuffle"))
@@ -186,6 +192,8 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	var payload struct {
 		Status string `json:"status"`
 	}

@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	AppSecret        string
+	IsProduction     bool
 	DBHost           string
 	DBPort           string
 	DBDatabase       string
@@ -28,6 +29,7 @@ func New() *Config {
 	}
 	return &Config{
 		AppSecret:        os.Getenv("APP_SECRET"),
+		IsProduction:     false,
 		DBHost:           os.Getenv("DB_HOST"),
 		DBPort:           os.Getenv("DB_PORT"),
 		DBDatabase:       os.Getenv("DB_DATABASE"),

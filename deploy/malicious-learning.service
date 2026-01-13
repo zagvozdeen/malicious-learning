@@ -1,0 +1,12 @@
+[Unit]
+Description=Malicious Learning web app and telegram bot
+After=multi-user.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/var/www/ml.creavo.ru
+ExecStart=/bin/bash -c "cd /var/www/ml.creavo.ru && ./malicious-learning"
+
+[Install]
+WantedBy=multi-user.target

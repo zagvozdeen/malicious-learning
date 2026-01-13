@@ -21,6 +21,8 @@ type authResponse struct {
 }
 
 func (s *Service) login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	
 	req := &authRequest{}
 	err := json.UnmarshalRead(r.Body, req)
 	if err != nil {
