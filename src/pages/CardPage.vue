@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import ExamCard from '../components/ExamCard.vue'
+import ExamCard from '@/components/ExamCard.vue'
 
 
 const currentQuestionIndex = ref(0)
