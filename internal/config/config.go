@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	AppSecret        string
 	DBHost           string
 	DBPort           string
 	DBDatabase       string
@@ -23,6 +24,7 @@ func New() *Config {
 		slog.Warn("Failed to load .env file", slog.Any("err", err))
 	}
 	return &Config{
+		AppSecret:        os.Getenv("APP_SECRET"),
 		DBHost:           os.Getenv("DB_HOST"),
 		DBPort:           os.Getenv("DB_PORT"),
 		DBDatabase:       os.Getenv("DB_DATABASE"),

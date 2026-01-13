@@ -62,3 +62,12 @@ type UserAnswer struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+type FullUserAnswer struct {
+	UserAnswer
+
+	Answer     string
+	Question   string
+	ModuleID   string
+	ModuleName string
+}

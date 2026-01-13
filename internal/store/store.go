@@ -13,10 +13,12 @@ import (
 type Storage interface {
 	GetAllCards(ctx context.Context) ([]models.Card, error)
 	CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error
-	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.UserAnswer, error)
+	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error)
 	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
 	GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.UserAnswer, error)
 	UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error
+	GetUserByTID(ctx context.Context, tid int64) (*models.User, error)
+	GetUserByID(ctx context.Context, id int) (*models.User, error)
 }
 
 type User = models.User
@@ -47,7 +49,7 @@ func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 	cards := make([]models.Card, 0)
 	for rows.Next() {
 		var card models.Card
-		if err := rows.Scan(
+		err = rows.Scan(
 			&card.ID,
 			&card.UUID,
 			&card.Question,
@@ -55,12 +57,13 @@ func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 			&card.ModuleID,
 			&card.CreatedAt,
 			&card.UpdatedAt,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
 		cards = append(cards, card)
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 	return cards, nil
@@ -98,22 +101,36 @@ func (s Store) CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) er
 	return tx.Commit(ctx)
 }
 
-func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.UserAnswer, error) {
+func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, uuid, group_uuid, card_id, user_id, status, created_at, updated_at
-		FROM user_answers
-		WHERE group_uuid = $1
-		ORDER BY id
+		SELECT
+			ua.id,
+			ua.uuid,
+			ua.group_uuid,
+			ua.card_id,
+			ua.user_id,
+			ua.status,
+			ua.created_at,
+			ua.updated_at,
+			c.answer,
+			c.question,
+			c.module_id::text,
+			m.name
+		FROM user_answers ua
+		JOIN cards c ON c.id = ua.card_id
+		JOIN modules m ON m.id = c.module_id
+		WHERE ua.group_uuid = $1
+		ORDER BY ua.id
 	`, uuid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	answers := make([]models.UserAnswer, 0)
+	answers := make([]models.FullUserAnswer, 0)
 	for rows.Next() {
-		var answer models.UserAnswer
-		if err := rows.Scan(
+		var answer models.FullUserAnswer
+		err = rows.Scan(
 			&answer.ID,
 			&answer.UUID,
 			&answer.GroupUUID,
@@ -122,12 +139,17 @@ func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]mo
 			&answer.Status,
 			&answer.CreatedAt,
 			&answer.UpdatedAt,
-		); err != nil {
+			&answer.Answer,
+			&answer.Question,
+			&answer.ModuleID,
+			&answer.ModuleName,
+		)
+		if err != nil {
 			return nil, err
 		}
 		answers = append(answers, answer)
 	}
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 	return answers, nil
@@ -195,4 +217,14 @@ func (s Store) UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) erro
 		return pgx.ErrNoRows
 	}
 	return nil
+}
+
+func (s Store) GetUserByTID(ctx context.Context, tid int64) (*models.User, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Store) GetUserByID(ctx context.Context, id int) (*models.User, error) {
+	//TODO implement me
+	panic("implement me")
 }

@@ -3,17 +3,22 @@ package api
 import (
 	"context"
 	"encoding/json/v2"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/go-telegram/bot"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"github.com/zagvozdeen/malicious-learning/internal/store/models"
@@ -71,10 +76,7 @@ func (s *Service) getRoutes() *http.ServeMux {
 
 	mux.HandleFunc("GET /", s.index)
 	mux.HandleFunc("POST /api/test-session", s.createTestSession)
-	//mux.HandleFunc("GET /v1/reports/top-routes-dim", s.getTopRoutesDim)
-	//mux.HandleFunc("GET /v1/reports/error-rate", s.getErrorRate)
-	//mux.HandleFunc("GET /v1/reports/latency", s.getLatency)
-	//mux.HandleFunc("GET /v1/reports/timeseries", s.getTimeSeries)
+	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.updateUserAnswer)
 
 	return mux
 }
@@ -130,7 +132,7 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	groupUUID := uuid.NewString()
-	now := time.Now().UTC()
+	now := time.Now()
 	answers := make([]models.UserAnswer, 0, len(filtered))
 	for _, card := range filtered {
 		answers = append(answers, models.UserAnswer{
@@ -143,8 +145,8 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt: now,
 		})
 	}
-
-	if err := s.store.CreateUserAnswers(r.Context(), answers); err != nil {
+	err = s.store.CreateUserAnswers(r.Context(), answers)
+	if err != nil {
 		s.log.Error("Failed to create user answers", slog.Any("err", err))
 		http.Error(w, "failed to create test session", http.StatusInternalServerError)
 		return
@@ -157,6 +159,123 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		s.log.Warn("Failed to write response", slog.Any("err", err))
+	}
+}
+
+func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.UnmarshalRead(r.Body, &payload); err != nil {
+		http.Error(w, "invalid json body", http.StatusBadRequest)
+		return
+	}
+
+	uuidValue := r.PathValue("uuid")
+	if uuidValue == "" {
+		http.Error(w, "missing uuid", http.StatusBadRequest)
+		return
+	}
+	if _, err := uuid.Parse(uuidValue); err != nil {
+		http.Error(w, "invalid uuid", http.StatusBadRequest)
+		return
+	}
+
+	statusValue := strings.TrimSpace(payload.Status)
+	var status models.UserAnswerStatus
+	switch statusValue {
+	case string(models.UserAnswerStatusRemember):
+		status = models.UserAnswerStatusRemember
+	case string(models.UserAnswerStatusForgot):
+		status = models.UserAnswerStatusForgot
+	default:
+		http.Error(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+
+	ua, err := s.store.GetUserAnswerByUUID(r.Context(), uuidValue)
+	if err != nil {
+		http.Error(w, "user answer not found", http.StatusNotFound)
+		return
+	}
+	ua.Status = status
+	ua.UpdatedAt = time.Now()
+	err = s.store.UpdateUserAnswer(r.Context(), ua)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "user answer not found", http.StatusNotFound)
+			return
+		}
+		s.log.Error("Failed to update user answer", slog.Any("err", err))
+		http.Error(w, "failed to update user answer", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.MarshalWrite(w, map[string]any{
+		"uuid":   uuidValue,
+		"status": status,
+	})
+	if err != nil {
+		s.log.Warn("Failed to write response", slog.Any("err", err))
+	}
+}
+
+func (s *Service) Auth(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("Authorization")
+		switch {
+		case strings.HasPrefix(token, "tma "):
+			token = strings.TrimPrefix(token, "tma ")
+			values, err := url.ParseQuery(token)
+			if err != nil {
+				return
+				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
+			}
+			u, ok := bot.ValidateWebappRequest(values, c.cfg.TelegramBotToken)
+			if !ok {
+				return
+				//return c.Err(http.StatusUnauthorized, errors.New("failed to validate token"))
+			}
+			var user *models.User
+			user, err = s.store.GetUserByTID(r.Context(), u.ID)
+			if err != nil {
+				return
+				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("failed to get user: %w", err))
+			}
+			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
+			return
+		case strings.HasPrefix(token, "Bearer "):
+			token = strings.TrimPrefix(token, "Bearer ")
+			var claims jwt.RegisteredClaims
+			t, err := jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
+				return []byte(c.cfg.AppSecret), nil
+			})
+			if err != nil {
+				return
+				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
+			}
+			if !t.Valid {
+				return
+				//return c.Err(http.StatusUnauthorized, errors.New("invalid token"))
+			}
+			id, err := strconv.Atoi(claims.ID)
+			if err != nil {
+				return
+				//return c.Err(http.StatusUnauthorized, fmt.Errorf("invalid token ID %q: %w", claims.ID, err))
+			}
+			c.User, err = c.store.GetUserByID(ctx, id)
+			if err != nil {
+				return
+				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("get user by ID %d: %w", id, err))
+			}
+			fn(w, r)
+			return
+			//return next(c)
+		default:
+			return
+			//return c.SecureErr(http.StatusUnauthorized, "no token provided", fmt.Errorf("no token provided, token: %s", token))
+		}
 	}
 }
 
