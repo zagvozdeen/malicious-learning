@@ -60,6 +60,13 @@ func (s *Service) Run() {
 		}
 		s.log.Info("Root user created", slog.String("username", s.cfg.RootUserName))
 	})
+	wg.Go(func() {
+		if err := s.startBot(); err != nil {
+			s.log.Warn("Failed to start bot", slog.Any("err", err))
+			return
+		}
+		s.log.Info("Bot stopped")
+	})
 	select {
 	case <-time.After(time.Millisecond * 500):
 		s.log.Info(fmt.Sprintf("Server started on %s", addr))
