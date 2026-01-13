@@ -102,14 +102,14 @@ func (s *Service) getRoutes() *http.ServeMux {
 	}
 
 	mux.HandleFunc("POST /api/auth", s.login)
-	mux.HandleFunc("POST /api/test-session", s.auth(s.createTestSession))
+	mux.HandleFunc("POST /api/test-sessions", s.auth(s.createTestSession))
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
 
 	return mux
 }
 
 func (s *Service) index(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
+	http.ServeFile(w, r, "dev.html")
 }
 
 func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
@@ -181,6 +181,7 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	err = json.MarshalWrite(w, map[string]any{
 		"group_uuid": groupUUID,
@@ -188,7 +189,9 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		s.log.Warn("Failed to write response", slog.Any("err", err))
+		return
 	}
+	s.log.Info("Created test session")
 }
 
 func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
@@ -249,65 +252,6 @@ func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		s.log.Warn("Failed to write response", slog.Any("err", err))
-	}
-}
-
-func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("Authorization")
-		switch {
-		case strings.HasPrefix(token, "tma "):
-			token = strings.TrimPrefix(token, "tma ")
-			values, err := url.ParseQuery(token)
-			if err != nil {
-				return
-				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
-			}
-			u, ok := bot.ValidateWebappRequest(values, s.cfg.TelegramBotToken)
-			if !ok {
-				return
-				//return c.Err(http.StatusUnauthorized, errors.New("failed to validate token"))
-			}
-			var user *models.User
-			user, err = s.store.GetUserByTID(r.Context(), u.ID)
-			if err != nil {
-				return
-				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("failed to get user: %w", err))
-			}
-			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
-			return
-		case strings.HasPrefix(token, "Bearer "):
-			token = strings.TrimPrefix(token, "Bearer ")
-			var claims jwt.RegisteredClaims
-			t, err := jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
-				return []byte(s.cfg.AppSecret), nil
-			})
-			if err != nil {
-				return
-				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
-			}
-			if !t.Valid {
-				return
-				//return c.Err(http.StatusUnauthorized, errors.New("invalid token"))
-			}
-			id, err := strconv.Atoi(claims.ID)
-			if err != nil {
-				return
-				//return c.Err(http.StatusUnauthorized, fmt.Errorf("invalid token ID %q: %w", claims.ID, err))
-			}
-			var user *models.User
-			user, err = s.store.GetUserByID(r.Context(), id)
-			if err != nil {
-				return
-				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("get user by ID %d: %w", id, err))
-			}
-			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
-			return
-			//return next(c)
-		default:
-			return
-			//return c.SecureErr(http.StatusUnauthorized, "no token provided", fmt.Errorf("no token provided, token: %s", token))
-		}
 	}
 }
 

@@ -17,6 +17,10 @@ import (
 )
 
 func (s *Service) startBot() error {
+	if !s.cfg.TelegramBotEnabled {
+		s.log.Info("Telegram bot disabled")
+		return nil
+	}
 	b, err := bot.New(s.cfg.TelegramBotToken, bot.WithDefaultHandler(s.defaultHandler))
 	if err != nil {
 		return err

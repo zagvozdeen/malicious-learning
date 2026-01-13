@@ -20,7 +20,7 @@
         <button
           class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
           type="button"
-          @click="onAllQuestions"
+          @click="onAllShuffleQuestions"
         >
           <span class="size-6 flex items-center justify-center rounded-lg bg-red-400">
             <i class="bi bi-shuffle text-sm" />
@@ -37,9 +37,26 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useFetch } from '@/store.ts'
 
 const router = useRouter()
+const fetcher = useFetch()
+
 const onAllQuestions = () => {
-  router.push({ name: 'card' })
+  fetcher
+    .createTestSession(false, [1, 2])
+    .then(data => {
+      console.log(data)
+      // router.push({ name: 'card' })
+    })
+}
+
+const onAllShuffleQuestions = () => {
+  fetcher
+    .createTestSession(true, [1, 2])
+    .then(data => {
+      console.log(data)
+      // router.push({ name: 'card' })
+    })
 }
 </script>
