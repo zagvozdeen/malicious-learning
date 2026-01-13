@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,6 +14,12 @@ import (
 type Storage interface {
 	GetAllCards(ctx context.Context) ([]models.Card, error)
 	CreateTelegramUpdate(ctx context.Context, update *models.TelegramUpdate) error
+	GetModuleByName(ctx context.Context, name string) (*models.Module, error)
+	CreateModule(ctx context.Context, module *models.Module) error
+	GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*models.Card, error)
+	GetActiveCardByUID(ctx context.Context, uid int) (*models.Card, error)
+	CreateCard(ctx context.Context, card *models.Card) error
+	DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error
 	CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error
 	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error)
 	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
@@ -40,8 +47,9 @@ func New(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool) *Store {
 
 func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, uuid, question, answer, module_id, created_at, updated_at
+		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
 		FROM cards
+		WHERE is_active = true
 		ORDER BY id
 	`)
 	if err != nil {
@@ -54,10 +62,13 @@ func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 		var card models.Card
 		err = rows.Scan(
 			&card.ID,
+			&card.UID,
 			&card.UUID,
 			&card.Question,
 			&card.Answer,
 			&card.ModuleID,
+			&card.IsActive,
+			&card.Hash,
 			&card.CreatedAt,
 			&card.UpdatedAt,
 		)
@@ -79,6 +90,117 @@ func (s Store) CreateTelegramUpdate(ctx context.Context, update *models.Telegram
 		update.ID, update.Update, update.Date,
 	)
 	return err
+}
+
+func (s Store) GetModuleByName(ctx context.Context, name string) (*models.Module, error) {
+	var module models.Module
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, uuid, name, created_at, updated_at
+		FROM modules
+		WHERE name = $1
+	`, name).Scan(
+		&module.ID,
+		&module.UUID,
+		&module.Name,
+		&module.CreatedAt,
+		&module.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &module, nil
+}
+
+func (s Store) CreateModule(ctx context.Context, module *models.Module) error {
+	return s.pool.QueryRow(ctx, `
+		INSERT INTO modules (uuid, name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`, module.UUID, module.Name, module.CreatedAt, module.UpdatedAt).Scan(&module.ID)
+}
+
+func (s Store) GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*models.Card, error) {
+	var card models.Card
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
+		FROM cards
+		WHERE uid = $1 AND hash = $2
+		LIMIT 1
+	`, uid, hash).Scan(
+		&card.ID,
+		&card.UID,
+		&card.UUID,
+		&card.Question,
+		&card.Answer,
+		&card.ModuleID,
+		&card.IsActive,
+		&card.Hash,
+		&card.CreatedAt,
+		&card.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
+func (s Store) GetActiveCardByUID(ctx context.Context, uid int) (*models.Card, error) {
+	var card models.Card
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
+		FROM cards
+		WHERE uid = $1 AND is_active = true
+		ORDER BY id DESC
+		LIMIT 1
+	`, uid).Scan(
+		&card.ID,
+		&card.UID,
+		&card.UUID,
+		&card.Question,
+		&card.Answer,
+		&card.ModuleID,
+		&card.IsActive,
+		&card.Hash,
+		&card.CreatedAt,
+		&card.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
+func (s Store) CreateCard(ctx context.Context, card *models.Card) error {
+	return s.pool.QueryRow(ctx, `
+		INSERT INTO cards (uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id
+	`,
+		card.UID,
+		card.UUID,
+		card.Question,
+		card.Answer,
+		card.ModuleID,
+		card.IsActive,
+		card.Hash,
+		card.CreatedAt,
+		card.UpdatedAt,
+	).Scan(&card.ID)
+}
+
+func (s Store) DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE cards
+		SET is_active = false, updated_at = $1
+		WHERE id = $2
+	`, updatedAt, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func (s Store) CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error {

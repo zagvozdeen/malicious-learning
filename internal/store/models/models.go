@@ -36,10 +36,13 @@ type Module struct {
 
 type Card struct {
 	ID        int
+	UID       int
 	UUID      string
 	Question  string
 	Answer    string
 	ModuleID  int
+	IsActive  bool
+	Hash      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

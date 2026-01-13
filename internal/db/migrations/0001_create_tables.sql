@@ -32,10 +32,13 @@ CREATE TABLE IF NOT EXISTS modules
 CREATE TABLE IF NOT EXISTS cards
 (
     id         SERIAL PRIMARY KEY,
+    uid        INTEGER     NOT NULL,
     uuid       UUID        NOT NULL UNIQUE,
     question   TEXT        NOT NULL,
     answer     TEXT        NOT NULL,
     module_id  INTEGER     NOT NULL REFERENCES modules (id) ON DELETE RESTRICT,
+    is_active  BOOLEAN     NOT NULL,
+    hash       TEXT        NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );

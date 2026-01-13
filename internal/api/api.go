@@ -19,6 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/zagvozdeen/malicious-learning"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"github.com/zagvozdeen/malicious-learning/internal/store/models"
@@ -66,6 +67,13 @@ func (s *Service) Run() {
 			return
 		}
 		s.log.Info("Bot stopped")
+	})
+	wg.Go(func() {
+		if err := malicious_learning.ParseQuestions(s.ctx, s.store); err != nil {
+			s.log.Warn("Failed to parse questions", slog.Any("err", err))
+			return
+		}
+		s.log.Info("Questions parsed")
 	})
 	select {
 	case <-time.After(time.Millisecond * 500):
