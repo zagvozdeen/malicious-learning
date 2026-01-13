@@ -12,6 +12,7 @@ import (
 
 type Storage interface {
 	GetAllCards(ctx context.Context) ([]models.Card, error)
+	CreateTelegramUpdate(ctx context.Context, update *models.TelegramUpdate) error
 	CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error
 	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error)
 	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
@@ -69,6 +70,15 @@ func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 		return nil, err
 	}
 	return cards, nil
+}
+
+func (s Store) CreateTelegramUpdate(ctx context.Context, update *models.TelegramUpdate) (err error) {
+	_, err = s.pool.Exec(
+		ctx,
+		"INSERT INTO telegram_updates (id, update, date) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING",
+		update.ID, update.Update, update.Date,
+	)
+	return err
 }
 
 func (s Store) CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error {
