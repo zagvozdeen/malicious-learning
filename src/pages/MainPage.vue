@@ -42,21 +42,24 @@ import { useFetch } from '@/store.ts'
 const router = useRouter()
 const fetcher = useFetch()
 
-const onAllQuestions = () => {
+const createTestSession = (shuffle: boolean, modules: number[]) => {
   fetcher
-    .createTestSession(false, [1, 2])
+    .createTestSession(shuffle, modules)
     .then(data => {
-      console.log(data)
-      // router.push({ name: 'card' })
+      router.push({
+        name: 'cards',
+        params: {
+          uuid: data.group_uuid,
+        },
+      })
     })
 }
 
+const onAllQuestions = () => {
+  createTestSession(false, [1, 2])
+}
+
 const onAllShuffleQuestions = () => {
-  fetcher
-    .createTestSession(true, [1, 2])
-    .then(data => {
-      console.log(data)
-      // router.push({ name: 'card' })
-    })
+  createTestSession(true, [1, 2])
 }
 </script>

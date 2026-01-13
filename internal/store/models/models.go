@@ -71,6 +71,6 @@ type FullUserAnswer struct {
 
 	Answer     string
 	Question   string
-	ModuleID   string
+	ModuleID   int
 	ModuleName string
 }

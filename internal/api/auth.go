@@ -77,19 +77,27 @@ func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 			token = strings.TrimPrefix(token, "tma ")
 			values, err := url.ParseQuery(token)
 			if err != nil {
+				s.log.Warn("Failed to parse TMA token", slog.Any("err", err))
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
-				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
 			}
 			u, ok := bot.ValidateWebappRequest(values, s.cfg.TelegramBotToken)
 			if !ok {
+				s.log.Warn("Invalid TMA token")
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
-				//return c.Err(http.StatusUnauthorized, errors.New("failed to validate token"))
 			}
 			var user *models.User
 			user, err = s.store.GetUserByTID(r.Context(), u.ID)
 			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					s.log.Warn("TMA user not found", slog.Int64("tid", u.ID))
+					http.Error(w, "invalid token", http.StatusUnauthorized)
+					return
+				}
+				s.log.Error("Failed to load TMA user", slog.Any("err", err), slog.Int64("tid", u.ID))
+				http.Error(w, "failed to authenticate", http.StatusInternalServerError)
 				return
-				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("failed to get user: %w", err))
 			}
 			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
 			return
@@ -100,30 +108,39 @@ func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 				return []byte(s.cfg.AppSecret), nil
 			})
 			if err != nil {
+				s.log.Warn("Failed to parse auth token", slog.Any("err", err))
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
-				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
 			}
 			if !t.Valid {
+				s.log.Warn("Invalid auth token")
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
-				//return c.Err(http.StatusUnauthorized, errors.New("invalid token"))
 			}
 			id, err := strconv.Atoi(claims.ID)
 			if err != nil {
+				s.log.Warn("Invalid auth token ID", slog.String("id", claims.ID), slog.Any("err", err))
+				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
-				//return c.Err(http.StatusUnauthorized, fmt.Errorf("invalid token ID %q: %w", claims.ID, err))
 			}
 			var user *models.User
 			user, err = s.store.GetUserByID(r.Context(), id)
 			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					s.log.Warn("Auth user not found", slog.Int("id", id))
+					http.Error(w, "invalid token", http.StatusUnauthorized)
+					return
+				}
+				s.log.Error("Failed to load auth user", slog.Any("err", err), slog.Int("id", id))
+				http.Error(w, "failed to authenticate", http.StatusInternalServerError)
 				return
-				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("get user by ID %d: %w", id, err))
 			}
 			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
 			return
-			//return next(c)
 		default:
+			s.log.Warn("Missing authorization header")
+			http.Error(w, "authorization required", http.StatusUnauthorized)
 			return
-			//return c.SecureErr(http.StatusUnauthorized, "no token provided", fmt.Errorf("no token provided, token: %s", token))
 		}
 	}
 }

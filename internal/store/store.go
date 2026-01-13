@@ -248,7 +248,7 @@ func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]mo
 			ua.updated_at,
 			c.answer,
 			c.question,
-			c.module_id::text,
+			c.module_id,
 			m.name
 		FROM user_answers ua
 		JOIN cards c ON c.id = ua.card_id

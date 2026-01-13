@@ -1,3 +1,5 @@
+import type { UserAnswer, UserAnswerStatus } from '@/types.ts'
+
 const state = {
   tma: window.Telegram?.WebApp?.initData || null,
   token: localStorage.getItem('token'),
@@ -7,7 +9,7 @@ const state = {
 export const useState = () => {
   const isTelegramEnv = () => state.tma !== null
   const isLoggedIn = () => state.token !== null
-  const getAuthorizationHeader = () => isTelegramEnv() ? `Bearer ${state.token}` : `tma ${state.tma}`
+  const getAuthorizationHeader = () => isTelegramEnv() ? `tma ${state.tma}` : `Bearer ${state.token}`
   const getApiUrl = () => state.apiUrl
   const setToken = (token: string) => {
     localStorage.setItem('token', token)
@@ -45,11 +47,33 @@ export const useFetch = () => {
         'Authorization': state.getAuthorizationHeader(),
       },
     })
-    return await res.json() as string
+    return await res.json() as { group_uuid: string }
+  }
+
+  const getTestSession = async (uuid: string) => {
+    const res = await fetch(`${state.getApiUrl()}/api/test-sessions/${uuid}`, {
+      headers: {
+        'Authorization': state.getAuthorizationHeader(),
+      },
+    })
+    return await res.json() as { data: UserAnswer[] }
+  }
+
+  const updateUserAnswer = async (uuid: string, status: UserAnswerStatus) => {
+    const res = await fetch(`${state.getApiUrl()}/api/user-answers/${uuid}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': state.getAuthorizationHeader(),
+      },
+      body: JSON.stringify({ status }),
+    })
+    return await res.json() as { data: UserAnswer[] }
   }
 
   return {
     getToken,
     createTestSession,
+    getTestSession,
+    updateUserAnswer,
   }
 }

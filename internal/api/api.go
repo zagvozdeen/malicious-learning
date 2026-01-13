@@ -9,14 +9,11 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-telegram/bot"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/zagvozdeen/malicious-learning"
@@ -103,6 +100,7 @@ func (s *Service) getRoutes() *http.ServeMux {
 
 	mux.HandleFunc("POST /api/auth", s.login)
 	mux.HandleFunc("POST /api/test-sessions", s.auth(s.createTestSession))
+	mux.HandleFunc("GET /api/test-sessions/{uuid}", s.auth(s.getTestSession))
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
 
 	return mux
@@ -185,7 +183,6 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.MarshalWrite(w, map[string]any{
 		"group_uuid": groupUUID,
-		"count":      len(answers),
 	})
 	if err != nil {
 		s.log.Warn("Failed to write response", slog.Any("err", err))
@@ -194,9 +191,81 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 	s.log.Info("Created test session")
 }
 
-func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+func (s *Service) getTestSession(w http.ResponseWriter, r *http.Request) {
+	groupUUID := r.PathValue("uuid")
+	if groupUUID == "" {
+		http.Error(w, "missing uuid", http.StatusBadRequest)
+		return
+	}
+	if _, err := uuid.Parse(groupUUID); err != nil {
+		http.Error(w, "invalid uuid", http.StatusBadRequest)
+		return
+	}
 
+	ctx := r.Context().Value("user")
+	user, ok := ctx.(*store.User)
+	if !ok || user == nil {
+		http.Error(w, "user not found", http.StatusUnauthorized)
+		return
+	}
+
+	answers, err := s.store.GetUserAnswersByGroupUUID(r.Context(), groupUUID)
+	if err != nil {
+		s.log.Error("Failed to load test session", slog.Any("err", err), slog.String("group_uuid", groupUUID))
+		http.Error(w, "failed to load test session", http.StatusInternalServerError)
+		return
+	}
+	if len(answers) == 0 {
+		http.Error(w, "test session not found", http.StatusNotFound)
+		return
+	}
+	//if answers[0].UserID != user.ID {
+	//	s.log.Warn("Forbidden test session access", slog.String("group_uuid", groupUUID), slog.Int("user_id", user.ID))
+	//	http.Error(w, "test session not found", http.StatusNotFound)
+	//	return
+	//}
+
+	type testSessionAnswer struct {
+		UUID       string                  `json:"uuid"`
+		GroupUUID  string                  `json:"group_uuid"`
+		CardID     int                     `json:"card_id"`
+		Status     models.UserAnswerStatus `json:"status"`
+		Answer     string                  `json:"answer"`
+		Question   string                  `json:"question"`
+		ModuleID   int                     `json:"module_id"`
+		ModuleName string                  `json:"module_name"`
+	}
+
+	items := make([]testSessionAnswer, 0, len(answers))
+	for _, answer := range answers {
+		if answer.UserID != user.ID {
+			s.log.Warn("Forbidden test session access", slog.String("group_uuid", groupUUID), slog.Int("user_id", user.ID))
+			http.Error(w, "test session not found", http.StatusNotFound)
+			return
+		}
+		items = append(items, testSessionAnswer{
+			UUID:       answer.UUID,
+			GroupUUID:  answer.GroupUUID,
+			CardID:     answer.CardID,
+			Status:     answer.Status,
+			Answer:     answer.Answer,
+			Question:   answer.Question,
+			ModuleID:   answer.ModuleID,
+			ModuleName: answer.ModuleName,
+		})
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	err = json.MarshalWrite(w, map[string]any{
+		"data": items,
+	})
+	if err != nil {
+		s.log.Warn("Failed to write response", slog.Any("err", err))
+	}
+}
+
+func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Status string `json:"status"`
 	}
