@@ -53,6 +53,13 @@ func (s *Service) Run() {
 		stop <- server.ListenAndServe()
 		close(stop)
 	})
+	wg.Go(func() {
+		if err := s.createRootUser(); err != nil {
+			s.log.Warn("Failed to create root user", slog.Any("err", err))
+			return
+		}
+		s.log.Info("Root user created", slog.String("username", s.cfg.RootUserName))
+	})
 	select {
 	case <-time.After(time.Millisecond * 500):
 		s.log.Info(fmt.Sprintf("Server started on %s", addr))
@@ -75,8 +82,9 @@ func (s *Service) getRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", s.index)
-	mux.HandleFunc("POST /api/test-session", s.createTestSession)
-	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.updateUserAnswer)
+	mux.HandleFunc("POST /api/auth", s.login)
+	mux.HandleFunc("POST /api/test-session", s.auth(s.createTestSession))
+	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
 
 	return mux
 }
@@ -221,7 +229,7 @@ func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) Auth(fn http.HandlerFunc) http.HandlerFunc {
+func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
 		switch {
@@ -232,7 +240,7 @@ func (s *Service) Auth(fn http.HandlerFunc) http.HandlerFunc {
 				return
 				//return c.SecureErr(http.StatusUnauthorized, "invalid token", fmt.Errorf("parse token %q: %w", token, err))
 			}
-			u, ok := bot.ValidateWebappRequest(values, c.cfg.TelegramBotToken)
+			u, ok := bot.ValidateWebappRequest(values, s.cfg.TelegramBotToken)
 			if !ok {
 				return
 				//return c.Err(http.StatusUnauthorized, errors.New("failed to validate token"))
@@ -249,7 +257,7 @@ func (s *Service) Auth(fn http.HandlerFunc) http.HandlerFunc {
 			token = strings.TrimPrefix(token, "Bearer ")
 			var claims jwt.RegisteredClaims
 			t, err := jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
-				return []byte(c.cfg.AppSecret), nil
+				return []byte(s.cfg.AppSecret), nil
 			})
 			if err != nil {
 				return
@@ -264,12 +272,13 @@ func (s *Service) Auth(fn http.HandlerFunc) http.HandlerFunc {
 				return
 				//return c.Err(http.StatusUnauthorized, fmt.Errorf("invalid token ID %q: %w", claims.ID, err))
 			}
-			c.User, err = c.store.GetUserByID(ctx, id)
+			var user *models.User
+			user, err = s.store.GetUserByID(r.Context(), id)
 			if err != nil {
 				return
 				//return c.SecureErr(http.StatusUnauthorized, "failed to get user", fmt.Errorf("get user by ID %d: %w", id, err))
 			}
-			fn(w, r)
+			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
 			return
 			//return next(c)
 		default:

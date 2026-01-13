@@ -19,6 +19,8 @@ type Storage interface {
 	UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error
 	GetUserByTID(ctx context.Context, tid int64) (*models.User, error)
 	GetUserByID(ctx context.Context, id int) (*models.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
+	CreateUser(ctx context.Context, user *models.User) error
 }
 
 type User = models.User
@@ -225,6 +227,16 @@ func (s Store) GetUserByTID(ctx context.Context, tid int64) (*models.User, error
 }
 
 func (s Store) GetUserByID(ctx context.Context, id int) (*models.User, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Store) CreateUser(ctx context.Context, user *models.User) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Store) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	//TODO implement me
 	panic("implement me")
 }

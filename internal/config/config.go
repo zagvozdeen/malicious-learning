@@ -17,6 +17,9 @@ type Config struct {
 	DBDownMigrations bool
 	APIHost          string
 	APIPort          string
+	TelegramBotToken string
+	RootUserName     string
+	RootUserPassword string
 }
 
 func New() *Config {
@@ -33,5 +36,8 @@ func New() *Config {
 		DBDownMigrations: false,
 		APIHost:          "127.0.0.1",
 		APIPort:          "8081",
+		TelegramBotToken: os.Getenv("TG_BOT_TOKEN"),
+		RootUserName:     "root",
+		RootUserPassword: "password",
 	}
 }
