@@ -55,7 +55,9 @@ const (
 type UserAnswer struct {
 	ID        int
 	UUID      string
+	GroupUUID string
 	CardID    int
+	UserID    int
 	Status    UserAnswerStatus
 	CreatedAt time.Time
 	UpdatedAt time.Time

@@ -45,8 +45,10 @@ CREATE TYPE user_answer_status AS ENUM ('null', 'remember', 'forgot');
 CREATE TABLE IF NOT EXISTS user_answers
 (
     id         SERIAL PRIMARY KEY,
-    uuid       UUID               NOT NULL,
+    uuid       UUID               NOT NULL UNIQUE,
+    group_uuid UUID               NOT NULL,
     card_id    INTEGER            NOT NULL REFERENCES cards (id) ON DELETE CASCADE,
+    user_id    INTEGER            NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     status     user_answer_status NOT NULL,
     created_at TIMESTAMPTZ        NOT NULL,
     updated_at TIMESTAMPTZ        NOT NULL

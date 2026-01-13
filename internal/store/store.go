@@ -1,14 +1,25 @@
 package store
 
 import (
+	"context"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
+	"github.com/zagvozdeen/malicious-learning/internal/store/models"
 )
 
 type Storage interface {
+	GetAllCards(ctx context.Context) ([]models.Card, error)
+	CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error
+	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.UserAnswer, error)
+	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
+	GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.UserAnswer, error)
+	UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error
 }
+
+type User = models.User
 
 type Store struct {
 	cfg  *config.Config
@@ -20,4 +31,168 @@ var _ Storage = (*Store)(nil)
 
 func New(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool) *Store {
 	return &Store{cfg: cfg, log: log, pool: pool}
+}
+
+func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, uuid, question, answer, module_id, created_at, updated_at
+		FROM cards
+		ORDER BY id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	cards := make([]models.Card, 0)
+	for rows.Next() {
+		var card models.Card
+		if err := rows.Scan(
+			&card.ID,
+			&card.UUID,
+			&card.Question,
+			&card.Answer,
+			&card.ModuleID,
+			&card.CreatedAt,
+			&card.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		cards = append(cards, card)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return cards, nil
+}
+
+func (s Store) CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error {
+	if len(ua) == 0 {
+		return nil
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, answer := range ua {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO user_answers (uuid, group_uuid, card_id, user_id, status, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`,
+			answer.UUID,
+			answer.GroupUUID,
+			answer.CardID,
+			answer.UserID,
+			answer.Status,
+			answer.CreatedAt,
+			answer.UpdatedAt,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.UserAnswer, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, uuid, group_uuid, card_id, user_id, status, created_at, updated_at
+		FROM user_answers
+		WHERE group_uuid = $1
+		ORDER BY id
+	`, uuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	answers := make([]models.UserAnswer, 0)
+	for rows.Next() {
+		var answer models.UserAnswer
+		if err := rows.Scan(
+			&answer.ID,
+			&answer.UUID,
+			&answer.GroupUUID,
+			&answer.CardID,
+			&answer.UserID,
+			&answer.Status,
+			&answer.CreatedAt,
+			&answer.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		answers = append(answers, answer)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return answers, nil
+}
+
+func (s Store) GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT group_uuid
+		FROM user_answers
+		WHERE user_id = $1
+		GROUP BY group_uuid
+		ORDER BY group_uuid
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	groupUUIDs := make([]string, 0)
+	for rows.Next() {
+		var groupUUID string
+		if err := rows.Scan(&groupUUID); err != nil {
+			return nil, err
+		}
+		groupUUIDs = append(groupUUIDs, groupUUID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return groupUUIDs, nil
+}
+
+func (s Store) GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.UserAnswer, error) {
+	var answer models.UserAnswer
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, uuid, group_uuid, card_id, user_id, status, created_at, updated_at
+		FROM user_answers
+		WHERE uuid = $1
+	`, uuid).Scan(
+		&answer.ID,
+		&answer.UUID,
+		&answer.GroupUUID,
+		&answer.CardID,
+		&answer.UserID,
+		&answer.Status,
+		&answer.CreatedAt,
+		&answer.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &answer, nil
+}
+
+func (s Store) UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE user_answers
+		SET status = $1, updated_at = $2
+		WHERE uuid = $3
+	`, ua.Status, ua.UpdatedAt, ua.UUID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
