@@ -2,14 +2,11 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"fmt"
 	"log/slog"
 	"os"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -29,17 +26,18 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger) *pgxpool.Poo
 }
 
 func connect(ctx context.Context, cfg *config.Config, log *slog.Logger) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.NewWithConfig(ctx, &pgxpool.Config{
-		ConnConfig: &pgx.ConnConfig{
-			Config: pgconn.Config{
-				Host:     cfg.DBHost,
-				Port:     cfg.DBPort,
-				Database: cfg.DBDatabase,
-				User:     cfg.DBUsername,
-				Password: cfg.DBPassword,
-			},
-		},
-	})
+	connCfg, err := pgxpool.ParseConfig(fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		cfg.DBUsername,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBDatabase,
+	))
+	if err != nil {
+		return nil, err
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, connCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +76,7 @@ func migrate(ctx context.Context, cfg *config.Config, log goose.Logger, pool *pg
 	goose.SetBaseFS(fs)
 	goose.SetLogger(log)
 
-	err = goose.SetDialect("clickhouse")
+	err = goose.SetDialect("pgx")
 	if err != nil {
 		return err
 	}

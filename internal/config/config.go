@@ -1,13 +1,15 @@
 package config
 
 import (
+	"log/slog"
 	"os"
-	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
 	DBHost           string
-	DBPort           uint16
+	DBPort           string
 	DBDatabase       string
 	DBUsername       string
 	DBPassword       string
@@ -17,9 +19,12 @@ type Config struct {
 }
 
 func New() *Config {
+	if err := godotenv.Load(); err != nil {
+		slog.Warn("Failed to load .env file", slog.Any("err", err))
+	}
 	return &Config{
 		DBHost:           os.Getenv("DB_HOST"),
-		DBPort:           uint16(getEnvInt("DB_PORT", 5432)),
+		DBPort:           os.Getenv("DB_PORT"),
 		DBDatabase:       os.Getenv("DB_DATABASE"),
 		DBUsername:       os.Getenv("DB_USERNAME"),
 		DBPassword:       os.Getenv("DB_PASSWORD"),
@@ -27,12 +32,4 @@ func New() *Config {
 		APIHost:          "127.0.0.1",
 		APIPort:          "8081",
 	}
-}
-
-func getEnvInt(key string, fallback int) int {
-	v, err := strconv.Atoi(os.Getenv(key))
-	if err != nil {
-		return fallback
-	}
-	return v
 }

@@ -1,5 +1,8 @@
 .PHONY: build deploy
 
+dev:
+	GOEXPERIMENT=jsonv2 go run cmd/main.go
+
 build:
 	npm run build
 
