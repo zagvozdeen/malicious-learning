@@ -1,5 +1,8 @@
 <template>
-  <div class="min-h-dvh w-full flex items-center justify-center py-24">
+  <div
+    ref="swipeDiv"
+    class="min-h-dvh w-full flex items-center justify-center pb-24 pt-42"
+  >
     <div class="flex flex-col gap-4 w-full">
       <ExamCard
         :front="currentQuestion.question"
@@ -77,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import ExamCard from '@/components/ExamCard.vue'
 import { useRoute } from 'vue-router'
 import { useFetch } from '@/store.ts'
@@ -87,6 +90,9 @@ const route = useRoute()
 const fetcher = useFetch()
 const currentQuestionIndex = ref(0)
 const questions = ref<UserAnswer[]>([])
+const swipeDiv = useTemplateRef('swipeDiv')
+let touchstartX = 0
+let touchendX = 0
 
 const onClickPrev = () => {
   if (currentQuestionIndex.value > 0) {
@@ -134,11 +140,33 @@ const onClickForgetButton = () => {
     })
 }
 
+const handleGesture = () => {
+  const swipeDistance = touchendX - touchstartX
+
+  if (Math.abs(swipeDistance) > 100) {
+    if (swipeDistance > 0) {
+      onClickPrev()
+    } else {
+      onClickNext()
+    }
+  }
+}
+
 onMounted(() => {
   fetcher
     .getTestSession(route.params.uuid as string)
     .then(data => {
       questions.value = data.data
     })
+
+  if (swipeDiv.value) {
+    swipeDiv.value.addEventListener('touchstart', (e) => {
+      touchstartX = e.changedTouches[0]?.screenX || 0
+    })
+    swipeDiv.value.addEventListener('touchend', (e) => {
+      touchendX = e.changedTouches[0]?.screenX || 0
+      handleGesture()
+    })
+  }
 })
 </script>
