@@ -74,3 +74,11 @@ type FullUserAnswer struct {
 	ModuleID   int
 	ModuleName string
 }
+
+type TestSessionSummary struct {
+	GroupUUID     string    `json:"group_uuid"`
+	CountNull     int       `json:"count_null"`
+	CountRemember int       `json:"count_remember"`
+	CountForget   int       `json:"count_forget"`
+	CreatedAt     time.Time `json:"created_at"`
+}

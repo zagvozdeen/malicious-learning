@@ -99,6 +99,7 @@ func (s *Service) getRoutes() *http.ServeMux {
 	}
 
 	mux.HandleFunc("POST /api/auth", s.login)
+	mux.HandleFunc("GET /api/test-sessions", s.auth(s.getTestSessions))
 	mux.HandleFunc("POST /api/test-sessions", s.auth(s.createTestSession))
 	mux.HandleFunc("GET /api/test-sessions/{uuid}", s.auth(s.getTestSession))
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))

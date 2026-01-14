@@ -1,13 +1,35 @@
 <template>
-  <div class="min-h-dvh w-full flex items-center justify-center">
+  <div class="min-h-dvh w-full flex items-center justify-center py-24">
     <div class="flex flex-col gap-4 w-full">
-      <div class="fixed w-full max-w-md px-4 top-4 left-1/2 -translate-x-1/2">
+      <ExamCard
+        :front="currentQuestion.question"
+        :back="currentQuestion.answer"
+      />
+
+      <div class="fixed w-full max-w-md px-4 top-12 left-1/2 -translate-x-1/2">
+        <div
+          class="h-8 mb-6 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
+          :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
+        >
+          <div
+            v-for="q in questions"
+            :key="q.group_uuid"
+            class="flex items-end justify-center pb-0.5 rounded"
+            :class="{ [UserAnswerStatusColors[q.status]]: true }"
+          >
+            <span
+              class="size-1.5 rounded-full bg-white"
+              v-show="currentQuestion.uuid === q.uuid"
+            />
+          </div>
+        </div>
+
         <div class="flex items-center gap-2 justify-between">
           <router-link
             class="text-2xl font-bold select-none"
             :to="{ name: 'main' }"
           >
-            ML<sup>{{ currentQuestionIndex + 1 }}/{{ questions.length }}</sup>
+            <span class="text-xl"><span class="uppercase">{{ currentQuestion.module_name }}</span> [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>
           </router-link>
           <div class="grid grid-cols-[1fr_min-content_1fr] gap-1 p-1 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg">
             <button
@@ -28,11 +50,6 @@
           </div>
         </div>
       </div>
-
-      <ExamCard
-        :front="currentQuestion.question"
-        :back="currentQuestion.answer"
-      />
 
       <div class="fixed w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2">
         <div class="grid grid-cols-[1fr_min-content_1fr] gap-1 p-1 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg">
@@ -64,7 +81,7 @@ import { computed, onMounted, ref } from 'vue'
 import ExamCard from '@/components/ExamCard.vue'
 import { useRoute } from 'vue-router'
 import { useFetch } from '@/store.ts'
-import { type UserAnswer, UserAnswerStatus } from '@/types.ts'
+import { type UserAnswer, UserAnswerStatus, UserAnswerStatusColors } from '@/types.ts'
 
 const route = useRoute()
 const fetcher = useFetch()
@@ -88,22 +105,32 @@ const currentQuestion = computed(() => {
     uuid: '',
     question: 'Вопрос не найден',
     answer: 'Ответ не найден',
+    module_name: 'Модуль',
   }
 })
+
+const updateUserAnswer = (uuid: string, status: UserAnswerStatus) => {
+  const index = questions.value.findIndex(q => q.uuid === uuid)
+  if (questions.value[index]) {
+    questions.value[index].status = status
+  }
+}
 
 const onClickRememberButton = () => {
   fetcher
     .updateUserAnswer(currentQuestion.value.uuid, UserAnswerStatus.Remember)
-    .then(() => {
+    .then(data => {
       onClickNext()
+      updateUserAnswer(data.uuid, data.status)
     })
 }
 
 const onClickForgetButton = () => {
   fetcher
     .updateUserAnswer(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
-    .then(() => {
+    .then(data => {
       onClickNext()
+      updateUserAnswer(data.uuid, data.status)
     })
 }
 

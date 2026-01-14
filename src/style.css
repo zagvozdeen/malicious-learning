@@ -5,3 +5,12 @@
 @theme {
 	--font-nunito: "Nunito", sans-serif;
 }
+
+article {
+	ul {
+		list-style: disc;
+	}
+	ol {
+		list-style: decimal;
+	}
+}

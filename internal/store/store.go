@@ -22,6 +22,7 @@ type Storage interface {
 	DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error
 	CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error
 	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error)
+	GetTestSessions(ctx context.Context, userID int) ([]models.TestSessionSummary, error)
 	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
 	GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.UserAnswer, error)
 	UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error
@@ -287,6 +288,45 @@ func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]mo
 		return nil, err
 	}
 	return answers, nil
+}
+
+func (s Store) GetTestSessions(ctx context.Context, userID int) ([]models.TestSessionSummary, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT
+			group_uuid,
+			count(*) FILTER ( WHERE status = 'null' ) count_null,
+			count(*) FILTER ( WHERE status = 'remember' ) count_remember,
+			count(*) FILTER ( WHERE status = 'forgot' ) count_forget,
+			created_at
+		FROM user_answers
+		WHERE user_id = $1
+		GROUP BY group_uuid, created_at
+		ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sessions := make([]models.TestSessionSummary, 0)
+	for rows.Next() {
+		var session models.TestSessionSummary
+		err = rows.Scan(
+			&session.GroupUUID,
+			&session.CountNull,
+			&session.CountRemember,
+			&session.CountForget,
+			&session.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return sessions, nil
 }
 
 func (s Store) GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error) {
