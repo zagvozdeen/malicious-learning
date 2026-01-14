@@ -4,7 +4,7 @@
   >
     <span class="text-center uppercase text-sm font-bold py-1 select-none">{{ header }}</span>
     <span class="h-px w-full bg-gray-500/20" />
-    <span
+    <article
       class="text-xl font-bold text-center p-4 select-none"
       v-html="front"
     />

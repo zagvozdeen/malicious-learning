@@ -3,14 +3,17 @@
 @import "tailwindcss";
 
 @theme {
-	--font-nunito: "Nunito", sans-serif;
+    --font-nunito: "Nunito", sans-serif;
 }
 
-article {
-	ul {
-		list-style: disc;
-	}
-	ol {
-		list-style: decimal;
-	}
+article ul {
+    list-style: disc;
+}
+
+article ol {
+    list-style: decimal;
+}
+
+article a {
+    text-decoration: underline;
 }
