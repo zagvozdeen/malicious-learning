@@ -2,10 +2,15 @@
   <div
     class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg"
   >
-    <span class="text-xl font-bold text-center p-4 select-none">{{ front }}</span>
+    <span class="text-center uppercase text-sm font-bold py-1 select-none">{{ header }}</span>
+    <span class="h-px w-full bg-gray-500/20" />
+    <span
+      class="text-xl font-bold text-center p-4 select-none"
+      v-html="front"
+    />
     <span
       class="h-px w-full bg-gray-500/20"
-      v-if="isFront"
+      v-show="isFront"
     />
     <Transition
       name="collapse-custom"
@@ -41,6 +46,7 @@ import { ref, watch } from 'vue'
 const isFront = ref(true)
 
 const { front, back } = defineProps<{
+  header: string,
   front: string,
   back: string,
 }>()

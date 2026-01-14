@@ -1,17 +1,18 @@
 <template>
   <div
     ref="swipeDiv"
-    class="min-h-dvh w-full flex items-center justify-center pb-24 pt-42"
+    class="min-h-dvh w-full flex items-center justify-center pb-34 pt-6"
   >
     <div class="flex flex-col gap-4 w-full">
       <ExamCard
         :front="currentQuestion.question"
         :back="currentQuestion.answer"
+        :header="`${currentQuestion.module_name} [${currentQuestionIndex + 1}/${questions.length}]`"
       />
 
-      <div class="fixed w-full max-w-md px-4 top-12 left-1/2 -translate-x-1/2">
+      <div class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2">
         <div
-          class="h-8 mb-6 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
+          class="h-8 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
           :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
         >
           <div
@@ -27,51 +28,39 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-2 justify-between">
-          <router-link
-            class="text-2xl font-bold select-none"
-            :to="{ name: 'main' }"
+        <div class="grid grid-cols-[min-content_1fr_min-content] gap-2">
+          <button
+            class="flex items-center justify-center py-1 px-4.5 transition bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg hover:bg-gray-500/25 cursor-pointer"
+            type="button"
+            @click="onClickPrev"
           >
-            <span class="text-xl"><span class="uppercase">{{ currentQuestion.module_name }}</span> [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>
-          </router-link>
+            <i class="bi bi-chevron-left text-base flex" />
+          </button>
           <div class="grid grid-cols-[1fr_min-content_1fr] gap-1 p-1 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg">
             <button
-              class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold"
+              class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold text-center"
+              @click="onClickRememberButton"
               type="button"
-              @click="onClickPrev"
             >
-              <i class="bi bi-chevron-left text-lg" />
+              <i class="bi bi-lightbulb-fill text-sm" />
+              <span>Вспомнил</span>
             </button>
             <span class="w-px bg-gray-500/20" />
             <button
-              class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold"
+              class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold text-center"
+              @click="onClickForgetButton"
               type="button"
-              @click="onClickNext"
             >
-              <i class="bi bi-chevron-right text-lg" />
+              <i class="bi bi-heartbreak-fill text-sm" />
+              <span>Забыл</span>
             </button>
           </div>
-        </div>
-      </div>
-
-      <div class="fixed w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2">
-        <div class="grid grid-cols-[1fr_min-content_1fr] gap-1 p-1 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg">
           <button
-            class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold"
-            @click="onClickRememberButton"
+            class="flex items-center justify-center py-1 px-4.5 transition bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg hover:bg-gray-500/25 cursor-pointer"
             type="button"
+            @click="onClickNext"
           >
-            <i class="bi bi-lightbulb-fill text-sm" />
-            <span>Вспомнил</span>
-          </button>
-          <span class="w-px bg-gray-500/20" />
-          <button
-            class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold"
-            @click="onClickForgetButton"
-            type="button"
-          >
-            <i class="bi bi-heartbreak-fill text-sm" />
-            <span>Забыл</span>
+            <i class="bi bi-chevron-right text-base flex" />
           </button>
         </div>
       </div>
@@ -80,13 +69,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import ExamCard from '@/components/ExamCard.vue'
-import { useRoute } from 'vue-router'
-import { useFetch } from '@/store.ts'
+import { useRoute, useRouter } from 'vue-router'
+import { useFetch, useState } from '@/store.ts'
 import { type UserAnswer, UserAnswerStatus, UserAnswerStatusColors } from '@/types.ts'
 
 const route = useRoute()
+const router = useRouter()
+const state = useState()
 const fetcher = useFetch()
 const currentQuestionIndex = ref(0)
 const questions = ref<UserAnswer[]>([])
@@ -167,6 +158,19 @@ onMounted(() => {
       touchendX = e.changedTouches[0]?.screenX || 0
       handleGesture()
     })
+  }
+
+  if (state.isTelegramEnv()) {
+    window.Telegram.WebApp.BackButton.show()
+    window.Telegram.WebApp.BackButton.onClick(() => {
+      router.push({ name: 'main' })
+    })
+  }
+})
+
+onUnmounted(() => {
+  if (state.isTelegramEnv()) {
+    window.Telegram.WebApp.BackButton.hide()
   }
 })
 </script>
