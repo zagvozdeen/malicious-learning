@@ -111,8 +111,6 @@ func (s *Service) index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	query := r.URL.Query()
 
 	shuffle, err := parseBool(query.Get("shuffle"))

@@ -49,14 +49,32 @@ func (s *Service) defaultHandler(ctx context.Context, b *bot.Bot, update *tgbotm
 	}
 
 	text := strings.TrimSpace(update.Message.Text)
-	reply := "Неизвестное сообщение. Откройте mini app, весь функционал там."
+	reply := []string{"Бот не поддерживает никаких команд, весь функционал находится в мини\\-приложении"}
 	if text == "/start" {
-		reply = "Привет! Откройте mini app — весь функционал доступен там."
+		reply = []string{
+			"Добро пожаловать в бот *Malicious Learning*\\!",
+			"",
+			"С помощью этого бота ты можешь подготовиться к экзамену по машинному обучению\\. Внутри MiniApp ты найдёшь карточки с вопросами и ответами\\. А также у тебя будет персональная статистика, рассчитанная из ответов:",
+			"",
+			"\\- жми «Вспомнил» если знаешь ответ",
+			"\\- жми «Забыл» если не знаешь ответа",
+			"",
+			"Весь функционал находится в мини\\-приложении, открывай и готовься\\!",
+			"",
+			"Ещё сомневаешься или хочешь улучшить проект? [Код приложения](https://github.com/zagvozdeen/malicious-learning) публичный, доступен каждому\\. А если хочешь помочь улучшить ответы, то внутри есть инструкция, как это сделать, или можешь просто написать мне в личку\\.",
+			"",
+			"_[Связь с автором](https://t.me/denchik1170)_",
+		}
 	}
 
+	disabledPreviewOptions := true
 	_, err := b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: update.Message.Chat.ID,
-		Text:   reply,
+		ChatID:    update.Message.Chat.ID,
+		ParseMode: tgbotmodels.ParseModeMarkdown,
+		Text:      strings.Join(reply, "\n"),
+		LinkPreviewOptions: &tgbotmodels.LinkPreviewOptions{
+			IsDisabled: &disabledPreviewOptions,
+		},
 	})
 	if err != nil {
 		s.log.Warn("Failed to send telegram reply", slog.Any("err", err))
@@ -89,22 +107,15 @@ func (s *Service) ensureTelegramUser(ctx context.Context, tgUser *tgbotmodels.Us
 		return err
 	}
 
-	firstName := strings.TrimSpace(tgUser.FirstName)
-	if firstName == "" {
-		firstName = "User"
-	}
-
-	now := time.Now().UTC()
-	user := &storemodels.User{
+	return s.store.CreateUser(ctx, &storemodels.User{
 		TID:       null.NewInt(int(tgUser.ID), true),
 		UUID:      uid.String(),
-		FirstName: firstName,
+		FirstName: strings.TrimSpace(tgUser.FirstName),
 		LastName:  null.WrapString(strings.TrimSpace(tgUser.LastName)),
 		Username:  null.WrapString(strings.TrimSpace(tgUser.Username)),
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	return s.store.CreateUser(ctx, user)
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
 }
 
 func extractTelegramUser(update *tgbotmodels.Update) *tgbotmodels.User {
