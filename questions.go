@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"path"
 	"sort"
 	"strconv"
@@ -136,20 +135,16 @@ var markdownParser = goldmark.New(
 )
 
 func loadQuestionsFromMarkdown(dir string) ([]question, error) {
-	entries, err := fs.ReadDir(s, dir)
+	entries, err := s.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	fileNames := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+	fileNames := make([]string, len(entries))
+	for i, entry := range entries {
+		if !entry.IsDir() && path.Ext(entry.Name()) == ".md" {
+			fileNames[i] = entry.Name()
 		}
-		if path.Ext(entry.Name()) != ".md" {
-			continue
-		}
-		fileNames = append(fileNames, entry.Name())
 	}
 
 	sort.Strings(fileNames)
