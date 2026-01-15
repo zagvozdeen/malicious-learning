@@ -8,31 +8,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
-	"github.com/zagvozdeen/malicious-learning/internal/store/models"
 )
 
 type Storage interface {
-	GetAllCards(ctx context.Context) ([]models.Card, error)
-	CreateTelegramUpdate(ctx context.Context, update *models.TelegramUpdate) error
-	GetModuleByName(ctx context.Context, name string) (*models.Module, error)
-	CreateModule(ctx context.Context, module *models.Module) error
-	GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*models.Card, error)
-	GetActiveCardByUID(ctx context.Context, uid int) (*models.Card, error)
-	CreateCard(ctx context.Context, card *models.Card) error
+	GetAllCards(ctx context.Context) ([]Card, error)
+	CreateTelegramUpdate(ctx context.Context, update *TelegramUpdate) error
+	GetModuleByName(ctx context.Context, name string) (*Module, error)
+	CreateModule(ctx context.Context, module *Module) error
+	GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*Card, error)
+	GetActiveCardByUID(ctx context.Context, uid int) (*Card, error)
+	CreateCard(ctx context.Context, card *Card) error
 	DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error
-	CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error
-	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error)
-	GetTestSessions(ctx context.Context, userID int) ([]models.TestSessionSummary, error)
+	CreateUserAnswers(ctx context.Context, ua []UserAnswer) error
+	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]FullUserAnswer, error)
+	GetTestSessions(ctx context.Context, userID int) ([]TestSessionSummary, error)
 	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
-	GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.UserAnswer, error)
-	UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error
-	GetUserByTID(ctx context.Context, tid int64) (*models.User, error)
-	GetUserByID(ctx context.Context, id int) (*models.User, error)
-	GetUserByUsername(ctx context.Context, username string) (*models.User, error)
-	CreateUser(ctx context.Context, user *models.User) error
+	GetUserAnswerByUUID(ctx context.Context, uuid string) (*UserAnswer, error)
+	UpdateUserAnswer(ctx context.Context, ua *UserAnswer) error
+	GetUserByTID(ctx context.Context, tid int64) (*User, error)
+	GetUserByID(ctx context.Context, id int) (*User, error)
+	GetUserByUsername(ctx context.Context, username string) (*User, error)
+	CreateUser(ctx context.Context, user *User) error
 }
-
-type User = models.User
 
 type Store struct {
 	cfg  *config.Config
@@ -46,7 +43,7 @@ func New(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool) *Store {
 	return &Store{cfg: cfg, log: log, pool: pool}
 }
 
-func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
+func (s Store) GetAllCards(ctx context.Context) ([]Card, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
 		FROM cards
@@ -58,9 +55,9 @@ func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 	}
 	defer rows.Close()
 
-	cards := make([]models.Card, 0)
+	cards := make([]Card, 0)
 	for rows.Next() {
-		var card models.Card
+		var card Card
 		err = rows.Scan(
 			&card.ID,
 			&card.UID,
@@ -84,7 +81,7 @@ func (s Store) GetAllCards(ctx context.Context) ([]models.Card, error) {
 	return cards, nil
 }
 
-func (s Store) CreateTelegramUpdate(ctx context.Context, update *models.TelegramUpdate) (err error) {
+func (s Store) CreateTelegramUpdate(ctx context.Context, update *TelegramUpdate) (err error) {
 	_, err = s.pool.Exec(
 		ctx,
 		"INSERT INTO telegram_updates (id, update, date) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING",
@@ -93,8 +90,8 @@ func (s Store) CreateTelegramUpdate(ctx context.Context, update *models.Telegram
 	return err
 }
 
-func (s Store) GetModuleByName(ctx context.Context, name string) (*models.Module, error) {
-	var module models.Module
+func (s Store) GetModuleByName(ctx context.Context, name string) (*Module, error) {
+	var module Module
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, uuid, name, created_at, updated_at
 		FROM modules
@@ -112,7 +109,7 @@ func (s Store) GetModuleByName(ctx context.Context, name string) (*models.Module
 	return &module, nil
 }
 
-func (s Store) CreateModule(ctx context.Context, module *models.Module) error {
+func (s Store) CreateModule(ctx context.Context, module *Module) error {
 	return s.pool.QueryRow(ctx, `
 		INSERT INTO modules (uuid, name, created_at, updated_at)
 		VALUES ($1, $2, $3, $4)
@@ -120,8 +117,8 @@ func (s Store) CreateModule(ctx context.Context, module *models.Module) error {
 	`, module.UUID, module.Name, module.CreatedAt, module.UpdatedAt).Scan(&module.ID)
 }
 
-func (s Store) GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*models.Card, error) {
-	var card models.Card
+func (s Store) GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*Card, error) {
+	var card Card
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
 		FROM cards
@@ -145,8 +142,8 @@ func (s Store) GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*
 	return &card, nil
 }
 
-func (s Store) GetActiveCardByUID(ctx context.Context, uid int) (*models.Card, error) {
-	var card models.Card
+func (s Store) GetActiveCardByUID(ctx context.Context, uid int) (*Card, error) {
+	var card Card
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
 		FROM cards
@@ -171,7 +168,7 @@ func (s Store) GetActiveCardByUID(ctx context.Context, uid int) (*models.Card, e
 	return &card, nil
 }
 
-func (s Store) CreateCard(ctx context.Context, card *models.Card) error {
+func (s Store) CreateCard(ctx context.Context, card *Card) error {
 	return s.pool.QueryRow(ctx, `
 		INSERT INTO cards (uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -204,7 +201,7 @@ func (s Store) DeactivateCardByID(ctx context.Context, id int, updatedAt time.Ti
 	return nil
 }
 
-func (s Store) CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) error {
+func (s Store) CreateUserAnswers(ctx context.Context, ua []UserAnswer) error {
 	if len(ua) == 0 {
 		return nil
 	}
@@ -236,7 +233,7 @@ func (s Store) CreateUserAnswers(ctx context.Context, ua []models.UserAnswer) er
 	return tx.Commit(ctx)
 }
 
-func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]models.FullUserAnswer, error) {
+func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]FullUserAnswer, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT
 			ua.id,
@@ -262,9 +259,9 @@ func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]mo
 	}
 	defer rows.Close()
 
-	answers := make([]models.FullUserAnswer, 0)
+	answers := make([]FullUserAnswer, 0)
 	for rows.Next() {
-		var answer models.FullUserAnswer
+		var answer FullUserAnswer
 		err = rows.Scan(
 			&answer.ID,
 			&answer.UUID,
@@ -290,7 +287,7 @@ func (s Store) GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]mo
 	return answers, nil
 }
 
-func (s Store) GetTestSessions(ctx context.Context, userID int) ([]models.TestSessionSummary, error) {
+func (s Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionSummary, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT
 			group_uuid,
@@ -308,9 +305,9 @@ func (s Store) GetTestSessions(ctx context.Context, userID int) ([]models.TestSe
 	}
 	defer rows.Close()
 
-	sessions := make([]models.TestSessionSummary, 0)
+	sessions := make([]TestSessionSummary, 0)
 	for rows.Next() {
-		var session models.TestSessionSummary
+		var session TestSessionSummary
 		err = rows.Scan(
 			&session.GroupUUID,
 			&session.CountNull,
@@ -356,8 +353,8 @@ func (s Store) GetDistinctUserAnswers(ctx context.Context, userID int) ([]string
 	return groupUUIDs, nil
 }
 
-func (s Store) GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.UserAnswer, error) {
-	var answer models.UserAnswer
+func (s Store) GetUserAnswerByUUID(ctx context.Context, uuid string) (*UserAnswer, error) {
+	var answer UserAnswer
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, uuid, group_uuid, card_id, user_id, status, created_at, updated_at
 		FROM user_answers
@@ -378,7 +375,7 @@ func (s Store) GetUserAnswerByUUID(ctx context.Context, uuid string) (*models.Us
 	return &answer, nil
 }
 
-func (s Store) UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) error {
+func (s Store) UpdateUserAnswer(ctx context.Context, ua *UserAnswer) error {
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE user_answers
 		SET status = $1, updated_at = $2
@@ -393,8 +390,8 @@ func (s Store) UpdateUserAnswer(ctx context.Context, ua *models.UserAnswer) erro
 	return nil
 }
 
-func (s Store) GetUserByTID(ctx context.Context, tid int64) (*models.User, error) {
-	var user models.User
+func (s Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
+	var user User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
 		FROM users
@@ -417,8 +414,8 @@ func (s Store) GetUserByTID(ctx context.Context, tid int64) (*models.User, error
 	return &user, nil
 }
 
-func (s Store) GetUserByID(ctx context.Context, id int) (*models.User, error) {
-	var user models.User
+func (s Store) GetUserByID(ctx context.Context, id int) (*User, error) {
+	var user User
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
 		FROM users
@@ -441,7 +438,7 @@ func (s Store) GetUserByID(ctx context.Context, id int) (*models.User, error) {
 	return &user, nil
 }
 
-func (s Store) CreateUser(ctx context.Context, user *models.User) error {
+func (s Store) CreateUser(ctx context.Context, user *User) error {
 	return s.pool.QueryRow(ctx, `
 		INSERT INTO users (tid, uuid, first_name, last_name, username, email, password, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -459,13 +456,13 @@ func (s Store) CreateUser(ctx context.Context, user *models.User) error {
 	).Scan(&user.ID)
 }
 
-func (s Store) GetUserByUsername(ctx context.Context, username string) (*models.User, error) {
-	var user models.User
-	err := s.pool.QueryRow(ctx, `
-		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
-		FROM users
-		WHERE username = $1
-	`, username).Scan(
+func (s Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+	user := &User{}
+	err := s.pool.QueryRow(
+		ctx,
+		"SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at FROM users WHERE username = $1 LIMIT 1",
+		username,
+	).Scan(
 		&user.ID,
 		&user.TID,
 		&user.UUID,
@@ -480,5 +477,5 @@ func (s Store) GetUserByUsername(ctx context.Context, username string) (*models.
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	return user, nil
 }

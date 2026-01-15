@@ -14,7 +14,7 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
-	"github.com/zagvozdeen/malicious-learning/internal/store/models"
+	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -87,7 +87,7 @@ func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
-			var user *models.User
+			var user *store.User
 			user, err = s.store.GetUserByTID(r.Context(), u.ID)
 			if err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
@@ -123,7 +123,7 @@ func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				return
 			}
-			var user *models.User
+			var user *store.User
 			user, err = s.store.GetUserByID(r.Context(), id)
 			if err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {

@@ -37,12 +37,7 @@ func (v *String) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 }
 
 func NewString(s string, valid bool) String {
-	return String{
-		Null: sql.Null[string]{
-			V:     s,
-			Valid: valid,
-		},
-	}
+	return String{Null: sql.Null[string]{V: s, Valid: valid}}
 }
 
 func WrapString(s string) String {
@@ -77,11 +72,12 @@ func (v *Int) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		v.V, v.Valid = int(tok.Int()), true
 		return nil
 	case '"':
-		n, err := strconv.ParseInt(tok.String(), 10, 64)
+		var n int
+		n, err = strconv.Atoi(tok.String())
 		if err != nil {
 			return fmt.Errorf("NullInt64: bad integer string %q: %w", tok.String(), err)
 		}
-		v.V, v.Valid = int(n), true
+		v.V, v.Valid = n, true
 		return nil
 	default:
 		return fmt.Errorf("NullInt64: expected number, string(number) or null, got %s", tok.Kind().String())
@@ -89,12 +85,7 @@ func (v *Int) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 }
 
 func NewInt(v int, valid bool) Int {
-	return Int{
-		Null: sql.Null[int]{
-			V:     v,
-			Valid: valid,
-		},
-	}
+	return Int{Null: sql.Null[int]{V: v, Valid: valid}}
 }
 
 func WrapInt(v int) Int {

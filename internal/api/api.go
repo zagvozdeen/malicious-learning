@@ -19,7 +19,6 @@ import (
 	"github.com/zagvozdeen/malicious-learning"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
-	"github.com/zagvozdeen/malicious-learning/internal/store/models"
 )
 
 type Service struct {
@@ -135,7 +134,7 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 
 	filtered := cards
 	if len(moduleIDs) > 0 {
-		filtered = make([]models.Card, 0, len(cards))
+		filtered = make([]store.Card, 0, len(cards))
 		for _, card := range cards {
 			if _, ok := moduleIDs[card.ModuleID]; ok {
 				filtered = append(filtered, card)
@@ -159,14 +158,14 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 
 	groupUUID := uuid.NewString()
 	now := time.Now()
-	answers := make([]models.UserAnswer, 0, len(filtered))
+	answers := make([]store.UserAnswer, 0, len(filtered))
 	for _, card := range filtered {
-		answers = append(answers, models.UserAnswer{
+		answers = append(answers, store.UserAnswer{
 			UUID:      uuid.NewString(),
 			GroupUUID: groupUUID,
 			CardID:    card.ID,
 			UserID:    user.ID,
-			Status:    models.UserAnswerStatusNull,
+			Status:    store.UserAnswerStatusNull,
 			CreatedAt: now,
 			UpdatedAt: now,
 		})
@@ -220,14 +219,14 @@ func (s *Service) getTestSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type testSessionAnswer struct {
-		UUID       string                  `json:"uuid"`
-		GroupUUID  string                  `json:"group_uuid"`
-		CardID     int                     `json:"card_id"`
-		Status     models.UserAnswerStatus `json:"status"`
-		Answer     string                  `json:"answer"`
-		Question   string                  `json:"question"`
-		ModuleID   int                     `json:"module_id"`
-		ModuleName string                  `json:"module_name"`
+		UUID       string                 `json:"uuid"`
+		GroupUUID  string                 `json:"group_uuid"`
+		CardID     int                    `json:"card_id"`
+		Status     store.UserAnswerStatus `json:"status"`
+		Answer     string                 `json:"answer"`
+		Question   string                 `json:"question"`
+		ModuleID   int                    `json:"module_id"`
+		ModuleName string                 `json:"module_name"`
 	}
 
 	items := make([]testSessionAnswer, 0, len(answers))
@@ -279,12 +278,12 @@ func (s *Service) updateUserAnswer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	statusValue := strings.TrimSpace(payload.Status)
-	var status models.UserAnswerStatus
+	var status store.UserAnswerStatus
 	switch statusValue {
-	case string(models.UserAnswerStatusRemember):
-		status = models.UserAnswerStatusRemember
-	case string(models.UserAnswerStatusForgot):
-		status = models.UserAnswerStatusForgot
+	case string(store.UserAnswerStatusRemember):
+		status = store.UserAnswerStatusRemember
+	case string(store.UserAnswerStatusForgot):
+		status = store.UserAnswerStatusForgot
 	default:
 		http.Error(w, "invalid status", http.StatusBadRequest)
 		return

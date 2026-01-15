@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/zagvozdeen/malicious-learning/internal/db/null"
-	"github.com/zagvozdeen/malicious-learning/internal/store/models"
+	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,7 +24,7 @@ func (s *Service) createRootUser() error {
 	_, err = s.store.GetUserByUsername(s.ctx, s.cfg.RootUserName)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			u := &models.User{
+			u := &store.User{
 				UUID:      uid.String(),
 				FirstName: s.cfg.RootUserName,
 				Username:  null.WrapString(s.cfg.RootUserName),

@@ -22,7 +22,6 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
-	"github.com/zagvozdeen/malicious-learning/internal/store/models"
 	"gopkg.in/yaml.v3"
 )
 
@@ -75,7 +74,7 @@ func ParseQuestions(ctx context.Context, store store.Storage) error {
 				return err
 			}
 			now := time.Now()
-			module = &models.Module{
+			module = &store.Module{
 				UUID:      moduleUUID.String(),
 				Name:      moduleName,
 				CreatedAt: now,
@@ -101,7 +100,7 @@ func ParseQuestions(ctx context.Context, store store.Storage) error {
 		if err != nil {
 			return err
 		}
-		card := &models.Card{
+		card := &store.Card{
 			UID:       int(q.UID),
 			UUID:      cardUUID.String(),
 			Question:  q.Question,

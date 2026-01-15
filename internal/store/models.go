@@ -1,4 +1,4 @@
-package models
+package store
 
 import (
 	"encoding/json"
@@ -55,15 +55,26 @@ const (
 	UserAnswerStatusForgot   UserAnswerStatus = "forgot"
 )
 
+type TestSession struct {
+	ID              int         `json:"id"`
+	UUID            string      `json:"uuid"`
+	UserID          int         `json:"user_id"`
+	ModuleIDs       []int       `json:"module_ids"`
+	IsShuffled      bool        `json:"is_shuffled"`
+	IsActive        bool        `json:"is_active"`
+	Recommendations null.String `json:"recommendations"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+}
+
 type UserAnswer struct {
-	ID        int
-	UUID      string
-	GroupUUID string
-	CardID    int
-	UserID    int
-	Status    UserAnswerStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID            int
+	UUID          string
+	CardID        int
+	TestSessionID int
+	Status        UserAnswerStatus
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type FullUserAnswer struct {

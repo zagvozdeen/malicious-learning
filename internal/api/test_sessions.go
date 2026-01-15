@@ -5,16 +5,16 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/zagvozdeen/malicious-learning/internal/store/models"
+	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
 
 type getTestSessionsResponse struct {
-	Data []models.TestSessionSummary `json:"data"`
+	Data []store.TestSessionSummary `json:"data"`
 }
 
 func (s *Service) getTestSessions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context().Value("user")
-	user, ok := ctx.(*models.User)
+	user, ok := ctx.(*store.User)
 	if !ok || user == nil {
 		http.Error(w, "user not found", http.StatusUnauthorized)
 		return
