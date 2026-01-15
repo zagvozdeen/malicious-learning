@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
+	"io/fs"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,7 +27,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed questions.json
+//go:embed questions/*.md
 var s embed.FS
 
 type question struct {
@@ -35,6 +35,11 @@ type question struct {
 	Module   string `json:"module"`
 	Question string `json:"question"`
 	Answer   string `json:"answer"`
+}
+
+type questionFrontmatter struct {
+	Question string `yaml:"question"`
+	Module   string `yaml:"module"`
 }
 
 // ParseQuestions читает Markdown из ./questions.
@@ -131,7 +136,7 @@ var markdownParser = goldmark.New(
 )
 
 func loadQuestionsFromMarkdown(dir string) ([]question, error) {
-	entries, err := os.ReadDir(dir)
+	entries, err := fs.ReadDir(s, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +146,7 @@ func loadQuestionsFromMarkdown(dir string) ([]question, error) {
 		if entry.IsDir() {
 			continue
 		}
-		if filepath.Ext(entry.Name()) != ".md" {
+		if path.Ext(entry.Name()) != ".md" {
 			continue
 		}
 		fileNames = append(fileNames, entry.Name())
@@ -151,10 +156,14 @@ func loadQuestionsFromMarkdown(dir string) ([]question, error) {
 
 	questions := make([]question, 0, len(fileNames))
 	for _, name := range fileNames {
-		path := filepath.Join(dir, name)
-		q, err := parseQuestionMarkdown(path)
+		filePath := path.Join(dir, name)
+		data, err := s.ReadFile(filePath)
 		if err != nil {
-			return nil, fmt.Errorf("parse %s: %w", path, err)
+			return nil, fmt.Errorf("read %s: %w", filePath, err)
+		}
+		q, err := parseQuestionMarkdown(filePath, data)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", filePath, err)
 		}
 		questions = append(questions, q)
 	}
@@ -162,9 +171,9 @@ func loadQuestionsFromMarkdown(dir string) ([]question, error) {
 	return questions, nil
 }
 
-func parseQuestionMarkdown(path string) (question, error) {
-	fileName := filepath.Base(path)
-	ext := filepath.Ext(fileName)
+func parseQuestionMarkdown(filePath string, data []byte) (question, error) {
+	fileName := path.Base(filePath)
+	ext := path.Ext(fileName)
 	if ext != ".md" {
 		return question{}, fmt.Errorf("unsupported extension: %s", ext)
 	}
@@ -173,11 +182,6 @@ func parseQuestionMarkdown(path string) (question, error) {
 	uid, err := strconv.ParseUint(idText, 10, 16)
 	if err != nil {
 		return question{}, fmt.Errorf("invalid question id %q: %w", idText, err)
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return question{}, err
 	}
 
 	frontmatterBytes, bodyBytes, err := splitFrontmatter(data)
@@ -196,6 +200,11 @@ func parseQuestionMarkdown(path string) (question, error) {
 		return question{}, errors.New("frontmatter module is empty")
 	}
 
+	questionHTML, err := renderMarkdown(frontmatter.Question)
+	if err != nil {
+		return question{}, err
+	}
+
 	var rendered bytes.Buffer
 	if err := markdownParser.Convert(bodyBytes, &rendered); err != nil {
 		return question{}, err
@@ -204,7 +213,7 @@ func parseQuestionMarkdown(path string) (question, error) {
 	return question{
 		UID:      uint16(uid),
 		Module:   frontmatter.Module,
-		Question: frontmatter.Question,
+		Question: questionHTML,
 		Answer:   rendered.String(),
 	}, nil
 }
@@ -240,4 +249,12 @@ func splitFrontmatter(data []byte) ([]byte, []byte, error) {
 	}
 
 	return frontmatter.Bytes(), body, nil
+}
+
+func renderMarkdown(input string) (string, error) {
+	var rendered bytes.Buffer
+	if err := markdownParser.Convert([]byte(input), &rendered); err != nil {
+		return "", err
+	}
+	return rendered.String(), nil
 }
