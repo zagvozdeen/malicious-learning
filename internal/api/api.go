@@ -56,7 +56,7 @@ func (s *Service) Run() {
 			s.log.Warn("Failed to create root user", slog.Any("err", err))
 			return
 		}
-		s.log.Info("Root user created", slog.String("username", s.cfg.RootUserName))
+		s.log.Info("Root user created or already exists", slog.String("username", s.cfg.RootUserName))
 	})
 	wg.Go(func() {
 		if err := s.startBot(); err != nil {
@@ -218,11 +218,6 @@ func (s *Service) getTestSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "test session not found", http.StatusNotFound)
 		return
 	}
-	//if answers[0].UserID != user.ID {
-	//	s.log.Warn("Forbidden test session access", slog.String("group_uuid", groupUUID), slog.Int("user_id", user.ID))
-	//	http.Error(w, "test session not found", http.StatusNotFound)
-	//	return
-	//}
 
 	type testSessionAnswer struct {
 		UUID       string                  `json:"uuid"`

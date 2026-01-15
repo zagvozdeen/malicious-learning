@@ -30,7 +30,7 @@ func New() *Config {
 	}
 	return &Config{
 		AppSecret:          os.Getenv("APP_SECRET"),
-		IsProduction:       false,
+		IsProduction:       os.Getenv("IS_PRODUCTION") == "true",
 		DBHost:             os.Getenv("DB_HOST"),
 		DBPort:             os.Getenv("DB_PORT"),
 		DBDatabase:         os.Getenv("DB_DATABASE"),

@@ -108,7 +108,7 @@ func (s *Service) ensureTelegramUser(ctx context.Context, tgUser *tgbotmodels.Us
 	}
 
 	return s.store.CreateUser(ctx, &storemodels.User{
-		TID:       null.NewInt(int(tgUser.ID), true),
+		TID:       null.WrapInt(int(tgUser.ID)),
 		UUID:      uid.String(),
 		FirstName: strings.TrimSpace(tgUser.FirstName),
 		LastName:  null.WrapString(strings.TrimSpace(tgUser.LastName)),
