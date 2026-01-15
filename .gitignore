@@ -14,6 +14,7 @@ dist-ssr
 *.prod
 .env
 .env.production
+questions/.obsidian
 
 # Editor directories and files
 .vscode
