@@ -56,3 +56,13 @@ export interface TestSessionSummary {
     created_at: string
 }
 
+export type Levels = 'error'| 'warn' | 'info'
+
+export interface Notification {
+    id: number
+    level: Levels
+    msg: string
+    date: number
+}
+
+export type PusherFunc = (level: Levels, msg: string, date: number) => void

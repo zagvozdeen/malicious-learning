@@ -73,10 +73,16 @@ import { useFetch } from '@/store.ts'
 import { onMounted, ref } from 'vue'
 import type { TestSessionSummary } from '@/types.ts'
 import { format } from 'date-fns'
+import { useNotifications } from '@/composables/useNotifications.ts'
 
 const router = useRouter()
 const fetcher = useFetch()
+const notifications = useNotifications()
 const testSessions = ref<TestSessionSummary[]>([])
+
+notifications.info('Внимание, всё получилось успешно!')
+notifications.warn('Внимание, всё получилось успешно!')
+notifications.error('Внимание, всё получилось успешно!')
 
 const createTestSession = (shuffle: boolean, modules: number[]) => {
   fetcher
