@@ -72,7 +72,8 @@
 import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import ExamCard from '@/components/ExamCard.vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useFetch, useState } from '@/store.ts'
+import { useFetch } from '@/composables/useFetch.ts'
+import { useState } from '@/composables/useState.ts'
 import {
   type FullUserAnswer,
   type TestSession,
@@ -123,8 +124,10 @@ const onClickRememberButton = () => {
   fetcher
     .updateUserAnswer(currentQuestion.value.uuid, UserAnswerStatus.Remember)
     .then(data => {
-      onClickNext()
-      updateUserAnswer(data.uuid, data.status)
+      if (data) {
+        onClickNext()
+        updateUserAnswer(data.uuid, data.status)
+      }
     })
 }
 
@@ -132,8 +135,10 @@ const onClickForgetButton = () => {
   fetcher
     .updateUserAnswer(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
     .then(data => {
-      onClickNext()
-      updateUserAnswer(data.uuid, data.status)
+      if (data) {
+        onClickNext()
+        updateUserAnswer(data.uuid, data.status)
+      }
     })
 }
 
@@ -153,8 +158,15 @@ onMounted(() => {
   fetcher
     .getTestSession(route.params.uuid as string)
     .then(data => {
-      ts.value = data.test_session
-      questions.value = data.user_answers
+      if (data) {
+        ts.value = data.test_session
+        questions.value = data.user_answers
+
+        const i = questions.value.findIndex(q => q.status === UserAnswerStatus.Null)
+        if (i !== -1) {
+          currentQuestionIndex.value = i
+        }
+      }
     })
 
   if (swipeDiv.value) {

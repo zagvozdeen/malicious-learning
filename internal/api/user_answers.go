@@ -46,6 +46,9 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 	if ua.UserID != user.ID {
 		return rErr(http.StatusForbidden, fmt.Errorf("you can not edit this user answer"))
 	}
+	if ua.Status != store.UserAnswerStatusNull {
+		return rErr(http.StatusForbidden, fmt.Errorf("user answer status must be null"))
+	}
 	ua.Status = status
 	ua.UpdatedAt = time.Now()
 	err = s.store.UpdateUserAnswer(r.Context(), ua)

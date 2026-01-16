@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useFetch } from '@/store.ts'
+import { useFetch } from '@/composables/useFetch.ts'
 import { onMounted, ref } from 'vue'
 import type { TestSessionSummary } from '@/types.ts'
 import { format } from 'date-fns'
@@ -80,20 +80,18 @@ const fetcher = useFetch()
 const notifications = useNotifications()
 const testSessions = ref<TestSessionSummary[]>([])
 
-notifications.info('Внимание, всё получилось успешно!')
-notifications.warn('Внимание, всё получилось успешно!')
-notifications.error('Внимание, всё получилось успешно!')
-
 const createTestSession = (shuffle: boolean, modules: number[]) => {
   fetcher
     .createTestSession(shuffle, modules)
     .then(data => {
-      router.push({
-        name: 'cards',
-        params: {
-          uuid: data.uuid,
-        },
-      })
+      if (data) {
+        router.push({
+          name: 'cards',
+          params: {
+            uuid: data.uuid,
+          },
+        })
+      }
     })
 }
 
@@ -111,7 +109,9 @@ onMounted(() => {
   fetcher
     .getTestSessions()
     .then(data => {
-      testSessions.value = data.data
+      if (data) {
+        testSessions.value = data.data
+      }
     })
 })
 </script>

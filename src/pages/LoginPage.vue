@@ -21,7 +21,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { reactive } from 'vue'
-import { useFetch, useState } from '@/store.ts'
+import { useFetch } from '@/composables/useFetch.ts'
+import { useState } from '@/composables/useState.ts'
 
 const router = useRouter()
 const state = useState()
