@@ -1,8 +1,33 @@
-export interface UserAnswer {
+export interface TestSession {
+    id: number
     uuid: string
-    group_uuid: string
+    user_id: number
+    module_ids: number[]
+    is_shuffled: boolean
+    is_active: boolean
+    recommendations: string | null
+    created_at: string
+    updated_at: string
+}
+
+export interface UserAnswer {
+    id: number
+    uuid: string
     card_id: number
+    test_session_id: number
     status: UserAnswerStatus
+    created_at: string
+    updated_at: string
+}
+
+export interface FullUserAnswer {
+    id: number
+    uuid: string
+    card_id: number
+    test_session_id: number
+    status: UserAnswerStatus
+    created_at: string
+    updated_at: string
     answer: string
     question: string
     module_id: number

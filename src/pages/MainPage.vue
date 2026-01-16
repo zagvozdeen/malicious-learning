@@ -85,7 +85,7 @@ const createTestSession = (shuffle: boolean, modules: number[]) => {
       router.push({
         name: 'cards',
         params: {
-          uuid: data.group_uuid,
+          uuid: data.uuid,
         },
       })
     })

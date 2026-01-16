@@ -17,7 +17,7 @@
         >
           <div
             v-for="q in questions"
-            :key="q.group_uuid"
+            :key="q.id"
             class="flex items-end justify-center pb-0.5 rounded"
             :class="{ [UserAnswerStatusColors[q.status]]: true }"
           >
@@ -73,14 +73,20 @@ import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import ExamCard from '@/components/ExamCard.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFetch, useState } from '@/store.ts'
-import { type UserAnswer, UserAnswerStatus, UserAnswerStatusColors } from '@/types.ts'
+import {
+  type FullUserAnswer,
+  type TestSession,
+  UserAnswerStatus,
+  UserAnswerStatusColors,
+} from '@/types.ts'
 
 const route = useRoute()
 const router = useRouter()
 const state = useState()
 const fetcher = useFetch()
 const currentQuestionIndex = ref(0)
-const questions = ref<UserAnswer[]>([])
+const ts = ref<TestSession | null>(null)
+const questions = ref<FullUserAnswer[]>([])
 const swipeDiv = useTemplateRef('swipeDiv')
 let touchstartX = 0
 let touchendX = 0
@@ -147,7 +153,8 @@ onMounted(() => {
   fetcher
     .getTestSession(route.params.uuid as string)
     .then(data => {
-      questions.value = data.data
+      ts.value = data.test_session
+      questions.value = data.user_answers
     })
 
   if (swipeDiv.value) {

@@ -17,11 +17,6 @@ type updateUserAnswerRequest struct {
 	Status string `json:"status"`
 }
 
-type updateUserAnswerResponse struct {
-	UUID   string                 `json:"uuid"`
-	Status store.UserAnswerStatus `json:"status"`
-}
-
 func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 	var payload updateUserAnswerRequest
 	if err := json.UnmarshalRead(r.Body, &payload); err != nil {
@@ -58,8 +53,5 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to update user answer: %w", err))
 	}
 
-	return rData(http.StatusOK, updateUserAnswerResponse{
-		UUID:   uuidValue,
-		Status: status,
-	})
+	return rData(http.StatusOK, ua)
 }

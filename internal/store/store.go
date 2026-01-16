@@ -21,10 +21,10 @@ type Storage interface {
 	CreateCard(ctx context.Context, card *Card) error
 	DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error
 
-	CreateUserAnswers(ctx context.Context, ua []UserAnswer) error
-	GetUserAnswersByGroupUUID(ctx context.Context, uuid string) ([]FullUserAnswer, error)
+	CreateTestSession(ctx context.Context, session *TestSession, answers []UserAnswer) error
+	GetTestSessionByUUID(ctx context.Context, uuid string) (*TestSession, error)
+	GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]FullUserAnswer, error)
 	GetTestSessions(ctx context.Context, userID int) ([]TestSessionSummary, error)
-	GetDistinctUserAnswers(ctx context.Context, userID int) ([]string, error)
 	GetUserAnswerByUUID(ctx context.Context, uuid string) (*UserAnswer, error)
 	UpdateUserAnswer(ctx context.Context, ua *UserAnswer) error
 

@@ -2,7 +2,7 @@ package store
 
 import "context"
 
-func (s Store) GetModuleByName(ctx context.Context, name string) (*Module, error) {
+func (s *Store) GetModuleByName(ctx context.Context, name string) (*Module, error) {
 	module := &Module{}
 	err := s.pool.QueryRow(
 		ctx,
@@ -21,7 +21,7 @@ func (s Store) GetModuleByName(ctx context.Context, name string) (*Module, error
 	return module, nil
 }
 
-func (s Store) CreateModule(ctx context.Context, module *Module) error {
+func (s *Store) CreateModule(ctx context.Context, module *Module) error {
 	return s.pool.QueryRow(
 		ctx,
 		"INSERT INTO modules (uuid, name, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING id",

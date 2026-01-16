@@ -1,38 +1,36 @@
 package api
 
 import (
-	"encoding/json/v2"
-	"log/slog"
+	"errors"
+	"fmt"
 	"math/rand"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
 
-func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
+func (s *Service) createTestSession(r *http.Request, user *store.User) Response {
 	query := r.URL.Query()
 
 	shuffle, err := parseBool(query.Get("shuffle"))
 	if err != nil {
-		http.Error(w, "invalid shuffle param", http.StatusBadRequest)
-		return
+		return rErr(http.StatusBadRequest, fmt.Errorf("invalid shuffle param: %w", err))
 	}
 
 	moduleIDs, err := parseModuleIDs(query.Get("modules"))
 	if err != nil {
-		http.Error(w, "invalid modules param", http.StatusBadRequest)
-		return
+		return rErr(http.StatusBadRequest, fmt.Errorf("invalid modules param: %w", err))
 	}
 
 	cards, err := s.store.GetAllCards(r.Context())
 	if err != nil {
-		s.log.Error("Failed to load cards", slog.Any("err", err))
-		http.Error(w, "failed to load cards", http.StatusInternalServerError)
-		return
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load cards: %w", err))
 	}
 
 	filtered := cards
@@ -52,139 +50,107 @@ func (s *Service) createTestSession(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	ctx := r.Context().Value("user")
-	user, ok := ctx.(*store.User)
-	if !ok || user == nil {
-		http.Error(w, "user not found", http.StatusUnauthorized)
-		return
+	sessionModuleIDs := make([]int, 0)
+	if len(moduleIDs) > 0 {
+		sessionModuleIDs = make([]int, 0, len(moduleIDs))
+		for id := range moduleIDs {
+			sessionModuleIDs = append(sessionModuleIDs, id)
+		}
+	} else {
+		moduleSet := make(map[int]struct{})
+		for _, card := range filtered {
+			moduleSet[card.ModuleID] = struct{}{}
+		}
+		sessionModuleIDs = make([]int, 0, len(moduleSet))
+		for id := range moduleSet {
+			sessionModuleIDs = append(sessionModuleIDs, id)
+		}
 	}
+	sort.Ints(sessionModuleIDs)
 
-	groupUUID := uuid.NewString()
+	uid, err := uuid.NewV7()
+	if err != nil {
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
+	}
 	now := time.Now()
+	session := &store.TestSession{
+		UUID:       uid.String(),
+		UserID:     user.ID,
+		ModuleIDs:  sessionModuleIDs,
+		IsShuffled: shuffle,
+		IsActive:   true,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
 	answers := make([]store.UserAnswer, 0, len(filtered))
 	for _, card := range filtered {
+		uaID, err := uuid.NewV7()
+		if err != nil {
+			return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
+		}
 		answers = append(answers, store.UserAnswer{
-			UUID:      uuid.NewString(),
-			GroupUUID: groupUUID,
+			UUID:      uaID.String(),
 			CardID:    card.ID,
-			UserID:    user.ID,
 			Status:    store.UserAnswerStatusNull,
 			CreatedAt: now,
 			UpdatedAt: now,
 		})
 	}
-	err = s.store.CreateUserAnswers(r.Context(), answers)
+	err = s.store.CreateTestSession(r.Context(), session, answers)
 	if err != nil {
-		s.log.Error("Failed to create user answers", slog.Any("err", err))
-		http.Error(w, "failed to create test session", http.StatusInternalServerError)
-		return
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create test session: %w", err))
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	err = json.MarshalWrite(w, map[string]any{
-		"group_uuid": groupUUID,
-	})
-	if err != nil {
-		s.log.Warn("Failed to write response", slog.Any("err", err))
-		return
-	}
-	s.log.Info("Created test session")
+	return rData(http.StatusOK, session)
 }
 
-func (s *Service) getTestSession(w http.ResponseWriter, r *http.Request) {
+type getTestSessionResponse struct {
+	TestSession *store.TestSession     `json:"test_session"`
+	UserAnswers []store.FullUserAnswer `json:"user_answers"`
+}
+
+func (s *Service) getTestSession(r *http.Request, user *store.User) Response {
 	groupUUID := r.PathValue("uuid")
 	if groupUUID == "" {
-		http.Error(w, "missing uuid", http.StatusBadRequest)
-		return
+		return rErr(http.StatusBadRequest, fmt.Errorf("missing uuid"))
 	}
-	if _, err := uuid.Parse(groupUUID); err != nil {
-		http.Error(w, "invalid uuid", http.StatusBadRequest)
-		return
+	if err := uuid.Validate(groupUUID); err != nil {
+		return rErr(http.StatusBadRequest, fmt.Errorf("invalid uuid: %w", err))
 	}
 
-	ctx := r.Context().Value("user")
-	user, ok := ctx.(*store.User)
-	if !ok || user == nil {
-		http.Error(w, "user not found", http.StatusUnauthorized)
-		return
-	}
-
-	answers, err := s.store.GetUserAnswersByGroupUUID(r.Context(), groupUUID)
+	ts, err := s.store.GetTestSessionByUUID(r.Context(), groupUUID)
 	if err != nil {
-		s.log.Error("Failed to load test session", slog.Any("err", err), slog.String("group_uuid", groupUUID))
-		http.Error(w, "failed to load test session", http.StatusInternalServerError)
-		return
-	}
-	if len(answers) == 0 {
-		http.Error(w, "test session not found", http.StatusNotFound)
-		return
-	}
-
-	type testSessionAnswer struct {
-		UUID       string                 `json:"uuid"`
-		GroupUUID  string                 `json:"group_uuid"`
-		CardID     int                    `json:"card_id"`
-		Status     store.UserAnswerStatus `json:"status"`
-		Answer     string                 `json:"answer"`
-		Question   string                 `json:"question"`
-		ModuleID   int                    `json:"module_id"`
-		ModuleName string                 `json:"module_name"`
-	}
-
-	items := make([]testSessionAnswer, 0, len(answers))
-	for _, answer := range answers {
-		if answer.UserID != user.ID {
-			s.log.Warn("Forbidden test session access", slog.String("group_uuid", groupUUID), slog.Int("user_id", user.ID))
-			http.Error(w, "test session not found", http.StatusNotFound)
-			return
+		if errors.Is(err, pgx.ErrNoRows) {
+			return rErr(http.StatusNotFound, fmt.Errorf("test session not found: %w", err))
 		}
-		items = append(items, testSessionAnswer{
-			UUID:       answer.UUID,
-			GroupUUID:  answer.GroupUUID,
-			CardID:     answer.CardID,
-			Status:     answer.Status,
-			Answer:     answer.Answer,
-			Question:   answer.Question,
-			ModuleID:   answer.ModuleID,
-			ModuleName: answer.ModuleName,
-		})
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to get test session: %w", err))
+	}
+	if ts.UserID != user.ID {
+		return rErr(http.StatusForbidden, fmt.Errorf("you can not get test session: %w", err))
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	err = json.MarshalWrite(w, map[string]any{
-		"data": items,
-	})
+	answers, err := s.store.GetUserAnswersByTestSessionID(r.Context(), ts.ID)
 	if err != nil {
-		s.log.Warn("Failed to write response", slog.Any("err", err))
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load user answers: %w", err))
 	}
+
+	return rData(http.StatusOK, getTestSessionResponse{
+		TestSession: ts,
+		UserAnswers: answers,
+	})
 }
 
 type getTestSessionsResponse struct {
 	Data []store.TestSessionSummary `json:"data"`
 }
 
-func (s *Service) getTestSessions(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context().Value("user")
-	user, ok := ctx.(*store.User)
-	if !ok || user == nil {
-		http.Error(w, "user not found", http.StatusUnauthorized)
-		return
-	}
-
+func (s *Service) getTestSessions(r *http.Request, user *store.User) Response {
 	sessions, err := s.store.GetTestSessions(r.Context(), user.ID)
 	if err != nil {
-		s.log.Error("Failed to load test sessions", slog.Any("err", err), slog.Int("user_id", user.ID))
-		http.Error(w, "failed to load test sessions", http.StatusInternalServerError)
-		return
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load test sessions: %w", err))
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	err = json.MarshalWrite(w, getTestSessionsResponse{Data: sessions})
-	if err != nil {
-		s.log.Warn("Failed to write response", slog.Any("err", err))
-	}
+	return rData(http.StatusOK, getTestSessionsResponse{Data: sessions})
 }
 
 func parseBool(value string) (bool, error) {

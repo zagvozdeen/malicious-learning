@@ -82,23 +82,23 @@ type TestSession struct {
 }
 
 type UserAnswer struct {
-	ID            int
-	UUID          string
-	CardID        int
-	TestSessionID int
-	UserID        int // from TestSession.UserID
-	Status        UserAnswerStatus
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID            int              `json:"id"`
+	UUID          string           `json:"uuid"`
+	CardID        int              `json:"card_id"`
+	TestSessionID int              `json:"test_session_id"`
+	UserID        int              `json:"user_id"` // from TestSession.UserID
+	Status        UserAnswerStatus `json:"status"`
+	CreatedAt     time.Time        `json:"created_at"`
+	UpdatedAt     time.Time        `json:"updated_at"`
 }
 
 type FullUserAnswer struct {
 	UserAnswer
 
-	Answer     string
-	Question   string
-	ModuleID   int
-	ModuleName string
+	Answer     string `json:"answer"`
+	Question   string `json:"question"`
+	ModuleID   int    `json:"module_id"`
+	ModuleName string `json:"module_name"`
 }
 
 type TestSessionSummary struct {

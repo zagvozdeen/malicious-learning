@@ -2,7 +2,7 @@ package store
 
 import "context"
 
-func (s Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
+func (s *Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
 	user := &User{}
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
@@ -26,7 +26,7 @@ func (s Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
 	return user, nil
 }
 
-func (s Store) GetUserByID(ctx context.Context, id int) (*User, error) {
+func (s *Store) GetUserByID(ctx context.Context, id int) (*User, error) {
 	user := &User{}
 	err := s.pool.QueryRow(ctx, `
 		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
@@ -50,7 +50,7 @@ func (s Store) GetUserByID(ctx context.Context, id int) (*User, error) {
 	return user, nil
 }
 
-func (s Store) CreateUser(ctx context.Context, user *User) error {
+func (s *Store) CreateUser(ctx context.Context, user *User) error {
 	return s.pool.QueryRow(ctx, `
 		INSERT INTO users (tid, uuid, first_name, last_name, username, email, password, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -68,7 +68,7 @@ func (s Store) CreateUser(ctx context.Context, user *User) error {
 	).Scan(&user.ID)
 }
 
-func (s Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	user := &User{}
 	err := s.pool.QueryRow(
 		ctx,

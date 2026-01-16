@@ -14,7 +14,7 @@ func New(cfg *config.Config) (*slog.Logger, func()) {
 			slog.Error("Failed to open log file", slog.Any("err", err))
 			os.Exit(1)
 		}
-		log := slog.New(slog.NewJSONHandler(file, &slog.HandlerOptions{Level: slog.LevelDebug}))
+		log := slog.New(slog.NewTextHandler(file, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		return log, func() {
 			closeErr := file.Close()
 			if closeErr != nil {

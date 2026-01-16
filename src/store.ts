@@ -1,4 +1,4 @@
-import type { TestSessionSummary, UserAnswer, UserAnswerStatus } from '@/types.ts'
+import type { FullUserAnswer, TestSession, TestSessionSummary, UserAnswer, UserAnswerStatus } from '@/types.ts'
 
 const state = {
   tma: window.Telegram?.WebApp?.initData || null,
@@ -47,7 +47,7 @@ export const useFetch = () => {
         'Authorization': state.getAuthorizationHeader(),
       },
     })
-    return await res.json() as { group_uuid: string }
+    return await res.json() as TestSession
   }
 
   const getTestSession = async (uuid: string) => {
@@ -56,7 +56,7 @@ export const useFetch = () => {
         'Authorization': state.getAuthorizationHeader(),
       },
     })
-    return await res.json() as { data: UserAnswer[] }
+    return await res.json() as { test_session: TestSession; user_answers: FullUserAnswer[] }
   }
 
   const getTestSessions = async () => {
@@ -76,7 +76,7 @@ export const useFetch = () => {
       },
       body: JSON.stringify({ status }),
     })
-    return await res.json() as { uuid: string; status: UserAnswerStatus }
+    return await res.json() as UserAnswer
   }
 
   return {
