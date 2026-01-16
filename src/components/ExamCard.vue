@@ -2,7 +2,9 @@
   <div
     class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg"
   >
-    <span class="text-center uppercase text-sm font-bold py-1 select-none">{{ header }}</span>
+    <div class="text-center uppercase text-sm font-bold py-1 select-none">
+      <slot />
+    </div>
     <span class="h-px w-full bg-gray-500/20" />
     <article
       class="text-xl font-bold text-center p-4 select-none"
@@ -46,7 +48,6 @@ import { ref, watch } from 'vue'
 const isFront = ref(true)
 
 const { front, back } = defineProps<{
-  header: string,
   front: string,
   back: string,
 }>()

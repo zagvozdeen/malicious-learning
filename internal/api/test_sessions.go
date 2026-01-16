@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -28,45 +28,17 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 		return rErr(http.StatusBadRequest, fmt.Errorf("invalid modules param: %w", err))
 	}
 
-	cards, err := s.store.GetAllCards(r.Context())
+	cards, err := s.store.GetCards(r.Context(), moduleIDs)
 	if err != nil {
 		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load cards: %w", err))
 	}
 
-	filtered := cards
-	if len(moduleIDs) > 0 {
-		filtered = make([]store.Card, 0, len(cards))
-		for _, card := range cards {
-			if _, ok := moduleIDs[card.ModuleID]; ok {
-				filtered = append(filtered, card)
-			}
-		}
-	}
-
-	if shuffle && len(filtered) > 1 {
+	if shuffle && len(cards) > 1 {
 		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-		rng.Shuffle(len(filtered), func(i, j int) {
-			filtered[i], filtered[j] = filtered[j], filtered[i]
+		rng.Shuffle(len(cards), func(i, j int) {
+			cards[i], cards[j] = cards[j], cards[i]
 		})
 	}
-
-	sessionModuleIDs := make([]int, 0)
-	if len(moduleIDs) > 0 {
-		sessionModuleIDs = make([]int, 0, len(moduleIDs))
-		for id := range moduleIDs {
-			sessionModuleIDs = append(sessionModuleIDs, id)
-		}
-	} else {
-		moduleSet := make(map[int]struct{})
-		for _, card := range filtered {
-			moduleSet[card.ModuleID] = struct{}{}
-		}
-		sessionModuleIDs = make([]int, 0, len(moduleSet))
-		for id := range moduleSet {
-			sessionModuleIDs = append(sessionModuleIDs, id)
-		}
-	}
-	sort.Ints(sessionModuleIDs)
 
 	uid, err := uuid.NewV7()
 	if err != nil {
@@ -76,20 +48,20 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 	session := &store.TestSession{
 		UUID:       uid.String(),
 		UserID:     user.ID,
-		ModuleIDs:  sessionModuleIDs,
+		ModuleIDs:  moduleIDs,
 		IsShuffled: shuffle,
 		IsActive:   true,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
-	answers := make([]store.UserAnswer, 0, len(filtered))
-	for _, card := range filtered {
-		uaID, err := uuid.NewV7()
+	answers := make([]store.UserAnswer, 0, len(cards))
+	for _, card := range cards {
+		uid, err = uuid.NewV7()
 		if err != nil {
 			return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
 		}
 		answers = append(answers, store.UserAnswer{
-			UUID:      uaID.String(),
+			UUID:      uid.String(),
 			CardID:    card.ID,
 			Status:    store.UserAnswerStatusNull,
 			CreatedAt: now,
@@ -160,13 +132,13 @@ func parseBool(value string) (bool, error) {
 	return strconv.ParseBool(value)
 }
 
-func parseModuleIDs(value string) (map[int]struct{}, error) {
+func parseModuleIDs(value string) ([]int, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil, nil
 	}
 
-	ids := make(map[int]struct{})
+	var ids []int
 	for _, part := range strings.Split(value, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
@@ -176,7 +148,8 @@ func parseModuleIDs(value string) (map[int]struct{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		ids[id] = struct{}{}
+		ids = append(ids, id)
 	}
+	slices.Sort(ids)
 	return ids, nil
 }

@@ -69,7 +69,7 @@ export const useFetch = () => {
       body: JSON.stringify({ status }),
     })
     if (await handleError(res)) return
-    return await res.json() as UserAnswer
+    return await res.json() as { data: UserAnswer; test_session: TestSession }
   }
 
   return {

@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Store) GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]FullUserAnswer, error) {
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.querier(ctx).Query(ctx, `
 		SELECT ua.id, ua.uuid, ua.card_id, ua.test_session_id, ua.status, ua.created_at, ua.updated_at, c.answer, c.question, c.module_id, m.name
 		FROM user_answers ua
 		JOIN cards c ON c.id = ua.card_id
@@ -48,7 +48,7 @@ func (s *Store) GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]Fu
 }
 
 func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionSummary, error) {
-	rows, err := s.pool.Query(ctx, `
+	rows, err := s.querier(ctx).Query(ctx, `
 		SELECT
 			ts.uuid,
 			count(ua.id) FILTER ( WHERE ua.status = 'null' ) count_null,
@@ -89,17 +89,15 @@ func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionS
 
 func (s *Store) GetUserAnswerByUUID(ctx context.Context, uuid string) (*UserAnswer, error) {
 	answer := &UserAnswer{}
-	err := s.pool.QueryRow(ctx, `
-		SELECT ua.id, ua.uuid, ua.card_id, ua.test_session_id, ts.user_id, ua.status, ua.created_at, ua.updated_at
-		FROM user_answers ua
-		LEFT JOIN test_sessions ts ON ts.id = ua.test_session_id
-		WHERE ua.uuid = $1
-	`, uuid).Scan(
+	err := s.querier(ctx).QueryRow(
+		ctx,
+		"SELECT id, uuid, card_id, test_session_id, status, created_at, updated_at FROM user_answers WHERE uuid = $1",
+		uuid,
+	).Scan(
 		&answer.ID,
 		&answer.UUID,
 		&answer.CardID,
 		&answer.TestSessionID,
-		&answer.UserID,
 		&answer.Status,
 		&answer.CreatedAt,
 		&answer.UpdatedAt,
@@ -111,7 +109,7 @@ func (s *Store) GetUserAnswerByUUID(ctx context.Context, uuid string) (*UserAnsw
 }
 
 func (s *Store) UpdateUserAnswer(ctx context.Context, ua *UserAnswer) error {
-	tag, err := s.pool.Exec(
+	tag, err := s.querier(ctx).Exec(
 		ctx,
 		"UPDATE user_answers SET status = $1, updated_at = $2 WHERE id = $3",
 		ua.Status, ua.UpdatedAt, ua.ID,

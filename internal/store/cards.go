@@ -2,18 +2,28 @@ package store
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
-func (s *Store) GetAllCards(ctx context.Context) ([]Card, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
-		FROM cards
-		WHERE is_active = true
-		ORDER BY id
-	`)
+func (s *Store) GetCards(ctx context.Context, moduleIDs []int) ([]Card, error) {
+	if len(moduleIDs) == 0 {
+		return nil, nil
+	}
+	pattern := make([]string, 0, len(moduleIDs))
+	args := make([]any, 0, len(moduleIDs))
+	for i := range moduleIDs {
+		pattern = append(pattern, fmt.Sprintf("$%d", i+1))
+		args = append(args, moduleIDs[i])
+	}
+	sql := fmt.Sprintf(
+		"SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at FROM cards WHERE is_active = true AND module_id in (%s) ORDER BY uid",
+		strings.Join(pattern, ","),
+	)
+	rows, err := s.querier(ctx).Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +57,7 @@ func (s *Store) GetAllCards(ctx context.Context) ([]Card, error) {
 
 func (s *Store) GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*Card, error) {
 	var card Card
-	err := s.pool.QueryRow(ctx, `
+	err := s.querier(ctx).QueryRow(ctx, `
 		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
 		FROM cards
 		WHERE uid = $1 AND hash = $2
@@ -72,7 +82,7 @@ func (s *Store) GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (
 
 func (s *Store) GetActiveCardByUID(ctx context.Context, uid int) (*Card, error) {
 	var card Card
-	err := s.pool.QueryRow(ctx, `
+	err := s.querier(ctx).QueryRow(ctx, `
 		SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at
 		FROM cards
 		WHERE uid = $1 AND is_active = true
@@ -97,7 +107,7 @@ func (s *Store) GetActiveCardByUID(ctx context.Context, uid int) (*Card, error) 
 }
 
 func (s *Store) CreateCard(ctx context.Context, card *Card) error {
-	return s.pool.QueryRow(ctx, `
+	return s.querier(ctx).QueryRow(ctx, `
 		INSERT INTO cards (uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
@@ -115,7 +125,7 @@ func (s *Store) CreateCard(ctx context.Context, card *Card) error {
 }
 
 func (s *Store) DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error {
-	tag, err := s.pool.Exec(ctx, `
+	tag, err := s.querier(ctx).Exec(ctx, `
 		UPDATE cards
 		SET is_active = false, updated_at = $1
 		WHERE id = $2

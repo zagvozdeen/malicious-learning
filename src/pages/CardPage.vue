@@ -4,14 +4,24 @@
     class="min-h-dvh w-full flex items-center justify-center pb-34 pt-6"
   >
     <div class="flex flex-col gap-4 w-full">
+      <AppSpinner v-if="loading" />
       <ExamCard
+        v-else
         :front="currentQuestion.question"
         :back="currentQuestion.answer"
-        :header="`${currentQuestion.module_name} [${currentQuestionIndex + 1}/${questions.length}]`"
-      />
+      >
+        <span>{{ currentQuestion.module_name }} [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>&nbsp;<span
+          v-show="currentQuestion.status == 'forgot'"
+          class="text-red-500"
+        >[вы забыли]</span><span
+          v-show="currentQuestion.status == 'remember'"
+          class="text-green-500"
+        >[вы вспомнили]</span>
+      </ExamCard>
 
       <div class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2">
         <div
+          v-if="!loading"
           class="h-8 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
           :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
         >
@@ -80,12 +90,16 @@ import {
   UserAnswerStatus,
   UserAnswerStatusColors,
 } from '@/types.ts'
+import AppSpinner from '@/components/AppSpinner.vue'
+import { useNotifications } from '@/composables/useNotifications.ts'
 
 const route = useRoute()
 const router = useRouter()
 const state = useState()
 const fetcher = useFetch()
+const notify = useNotifications()
 const currentQuestionIndex = ref(0)
+const loading = ref(true)
 const ts = ref<TestSession | null>(null)
 const questions = ref<FullUserAnswer[]>([])
 const swipeDiv = useTemplateRef('swipeDiv')
@@ -110,6 +124,8 @@ const currentQuestion = computed(() => {
     question: 'Вопрос не найден',
     answer: 'Ответ не найден',
     module_name: 'Модуль',
+    status: UserAnswerStatus.Null,
+    updated_at: Date.now(),
   }
 })
 
@@ -120,26 +136,31 @@ const updateUserAnswer = (uuid: string, status: UserAnswerStatus) => {
   }
 }
 
-const onClickRememberButton = () => {
+const updateUserAnswerStatus = (uuid: string, status: UserAnswerStatus) => {
+  if (loading.value) {
+    notify.warn('Данные ещё загружаются, подождите, пожалуйста')
+    return
+  }
   fetcher
-    .updateUserAnswer(currentQuestion.value.uuid, UserAnswerStatus.Remember)
+    .updateUserAnswer(uuid, status)
     .then(data => {
       if (data) {
         onClickNext()
-        updateUserAnswer(data.uuid, data.status)
+        updateUserAnswer(data.data.uuid, data.data.status)
+
+        if (!data.test_session.is_active) {
+          notify.info('Вы успешно прошли весь тест, поздравляю!')
+        }
       }
     })
 }
 
+const onClickRememberButton = () => {
+  updateUserAnswerStatus(currentQuestion.value.uuid, UserAnswerStatus.Remember)
+}
+
 const onClickForgetButton = () => {
-  fetcher
-    .updateUserAnswer(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
-    .then(data => {
-      if (data) {
-        onClickNext()
-        updateUserAnswer(data.uuid, data.status)
-      }
-    })
+  updateUserAnswerStatus(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
 }
 
 const handleGesture = () => {
@@ -166,6 +187,8 @@ onMounted(() => {
         if (i !== -1) {
           currentQuestionIndex.value = i
         }
+
+        loading.value = false
       }
     })
 

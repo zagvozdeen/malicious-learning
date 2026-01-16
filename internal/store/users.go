@@ -4,7 +4,7 @@ import "context"
 
 func (s *Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
 	user := &User{}
-	err := s.pool.QueryRow(ctx, `
+	err := s.querier(ctx).QueryRow(ctx, `
 		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
 		FROM users
 		WHERE tid = $1
@@ -28,7 +28,7 @@ func (s *Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
 
 func (s *Store) GetUserByID(ctx context.Context, id int) (*User, error) {
 	user := &User{}
-	err := s.pool.QueryRow(ctx, `
+	err := s.querier(ctx).QueryRow(ctx, `
 		SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at
 		FROM users
 		WHERE id = $1
@@ -51,7 +51,7 @@ func (s *Store) GetUserByID(ctx context.Context, id int) (*User, error) {
 }
 
 func (s *Store) CreateUser(ctx context.Context, user *User) error {
-	return s.pool.QueryRow(ctx, `
+	return s.querier(ctx).QueryRow(ctx, `
 		INSERT INTO users (tid, uuid, first_name, last_name, username, email, password, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
@@ -70,7 +70,7 @@ func (s *Store) CreateUser(ctx context.Context, user *User) error {
 
 func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
 	user := &User{}
-	err := s.pool.QueryRow(
+	err := s.querier(ctx).QueryRow(
 		ctx,
 		"SELECT id, tid, uuid, first_name, last_name, username, email, password, created_at, updated_at FROM users WHERE username = $1 LIMIT 1",
 		username,

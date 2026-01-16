@@ -86,7 +86,6 @@ type UserAnswer struct {
 	UUID          string           `json:"uuid"`
 	CardID        int              `json:"card_id"`
 	TestSessionID int              `json:"test_session_id"`
-	UserID        int              `json:"user_id"` // from TestSession.UserID
 	Status        UserAnswerStatus `json:"status"`
 	CreatedAt     time.Time        `json:"created_at"`
 	UpdatedAt     time.Time        `json:"updated_at"`

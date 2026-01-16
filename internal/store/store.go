@@ -10,18 +10,26 @@ import (
 )
 
 type Storage interface {
+	querier(ctx context.Context) querier
+
+	Begin(ctx context.Context) (context.Context, error)
+	Commit(ctx context.Context)
+	Rollback(ctx context.Context)
+
 	CreateTelegramUpdate(ctx context.Context, update *TelegramUpdate) error
 
 	GetModuleByName(ctx context.Context, name string) (*Module, error)
 	CreateModule(ctx context.Context, module *Module) error
 
-	GetAllCards(ctx context.Context) ([]Card, error)
+	GetCards(ctx context.Context, moduleIDs []int) ([]Card, error)
 	GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*Card, error)
 	GetActiveCardByUID(ctx context.Context, uid int) (*Card, error)
 	CreateCard(ctx context.Context, card *Card) error
 	DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error
 
 	CreateTestSession(ctx context.Context, session *TestSession, answers []UserAnswer) error
+	UpdateTestSession(ctx context.Context, session *TestSession) error
+	GetTestSessionByID(ctx context.Context, id int) (*TestSession, int, error)
 	GetTestSessionByUUID(ctx context.Context, uuid string) (*TestSession, error)
 	GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]FullUserAnswer, error)
 	GetTestSessions(ctx context.Context, userID int) ([]TestSessionSummary, error)

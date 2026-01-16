@@ -31,6 +31,36 @@
           </span>
         </button>
       </li>
+      <li class="w-full">
+        <button
+          class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
+          type="button"
+          @click="onOnlyTheoryQuestions"
+        >
+          <span class="size-6 flex items-center justify-center rounded-lg bg-orange-400">
+            <i class="bi bi-question-square-fill text-sm flex" />
+          </span>
+          <span class="text-left text-sm font-medium">Только теория</span>
+          <span class="text-gray-400">
+            <i class="bi bi-chevron-right text-sm flex" />
+          </span>
+        </button>
+      </li>
+      <li class="w-full">
+        <button
+          class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
+          type="button"
+          @click="onOnlyPracticeQuestions"
+        >
+          <span class="size-6 flex items-center justify-center rounded-lg bg-amber-400">
+            <i class="bi bi-keyboard-fill text-sm flex" />
+          </span>
+          <span class="text-left text-sm font-medium">Только практика</span>
+          <span class="text-gray-400">
+            <i class="bi bi-chevron-right text-sm flex" />
+          </span>
+        </button>
+      </li>
     </ul>
 
     <ul
@@ -77,7 +107,7 @@ import { useNotifications } from '@/composables/useNotifications.ts'
 
 const router = useRouter()
 const fetcher = useFetch()
-const notifications = useNotifications()
+const notify = useNotifications()
 const testSessions = ref<TestSessionSummary[]>([])
 
 const createTestSession = (shuffle: boolean, modules: number[]) => {
@@ -91,6 +121,7 @@ const createTestSession = (shuffle: boolean, modules: number[]) => {
             uuid: data.uuid,
           },
         })
+        notify.info('Тест начат, вы можете начать прохождение!')
       }
     })
 }
@@ -101,6 +132,14 @@ const onAllQuestions = () => {
 
 const onAllShuffleQuestions = () => {
   createTestSession(true, [1, 2])
+}
+
+const onOnlyTheoryQuestions = () => {
+  createTestSession(false, [1])
+}
+
+const onOnlyPracticeQuestions = () => {
+  createTestSession(false, [2])
 }
 
 const colors = ['bg-green-400', 'bg-yellow-400', 'bg-blue-400', 'bg-red-400', 'bg-orange-400']
