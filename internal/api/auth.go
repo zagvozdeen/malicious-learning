@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json/v2"
 	"errors"
 	"log/slog"
@@ -69,7 +68,9 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
+type HandlerFunc func(*http.Request, *store.User) Response
+
+func (s *Service) auth(fn HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
 		switch {
@@ -99,7 +100,7 @@ func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 				http.Error(w, "failed to authenticate", http.StatusInternalServerError)
 				return
 			}
-			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
+			fn(r, user).Response(w, s.log, user)
 			return
 		case strings.HasPrefix(token, "Bearer "):
 			token = strings.TrimPrefix(token, "Bearer ")
@@ -135,7 +136,7 @@ func (s *Service) auth(fn http.HandlerFunc) http.HandlerFunc {
 				http.Error(w, "failed to authenticate", http.StatusInternalServerError)
 				return
 			}
-			fn(w, r.WithContext(context.WithValue(r.Context(), "user", user)))
+			fn(r, user).Response(w, s.log, user)
 			return
 		default:
 			s.log.Warn("Missing authorization header")

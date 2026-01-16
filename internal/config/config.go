@@ -41,7 +41,7 @@ func New() *Config {
 		APIPort:            "8081",
 		TelegramBotToken:   os.Getenv("TG_BOT_TOKEN"),
 		TelegramBotEnabled: os.Getenv("TG_BOT_ENABLED") == "true",
-		RootUserName:       "root",
-		RootUserPassword:   "password",
+		RootUserName:       os.Getenv("ROOT_USER_NAME"),
+		RootUserPassword:   os.Getenv("ROOT_USER_PASSWORD"),
 	}
 }

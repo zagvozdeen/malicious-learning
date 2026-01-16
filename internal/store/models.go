@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/zagvozdeen/malicious-learning/internal/db/null"
@@ -55,6 +56,19 @@ const (
 	UserAnswerStatusForgot   UserAnswerStatus = "forgot"
 )
 
+func ParseUserAnswerStatus(s string) (UserAnswerStatus, error) {
+	switch s {
+	case string(UserAnswerStatusNull):
+		return UserAnswerStatusNull, nil
+	case string(UserAnswerStatusRemember):
+		return UserAnswerStatusRemember, nil
+	case string(UserAnswerStatusForgot):
+		return UserAnswerStatusForgot, nil
+	default:
+		return "", fmt.Errorf("invalid user answer status: %s", s)
+	}
+}
+
 type TestSession struct {
 	ID              int         `json:"id"`
 	UUID            string      `json:"uuid"`
@@ -72,6 +86,7 @@ type UserAnswer struct {
 	UUID          string
 	CardID        int
 	TestSessionID int
+	UserID        int // from TestSession.UserID
 	Status        UserAnswerStatus
 	CreatedAt     time.Time
 	UpdatedAt     time.Time

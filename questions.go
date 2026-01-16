@@ -47,7 +47,7 @@ type questionFrontmatter struct {
 // если такое значение нашлось, то ничего не делаем, даныные в актуальном состоянии
 // если такого значения нет, но находится по `uid=? and is_active=true`, то старое нужно пометить как is_active=false и создать новое с is_active=true
 // если такого значения нет даже по uid и is_active, то просто создать новую строчку
-func ParseQuestions(ctx context.Context, store store.Storage) error {
+func ParseQuestions(ctx context.Context, storage store.Storage) error {
 	questions, err := loadQuestionsFromMarkdown("questions")
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func ParseQuestions(ctx context.Context, store store.Storage) error {
 	for _, q := range questions {
 		moduleName := strings.TrimSpace(q.Module)
 		hash := questionHash(moduleName, q.Question, q.Answer)
-		_, err = store.GetCardByUIDAndHash(ctx, int(q.UID), hash)
+		_, err = storage.GetCardByUIDAndHash(ctx, int(q.UID), hash)
 		if err == nil {
 			continue
 		}
@@ -64,7 +64,7 @@ func ParseQuestions(ctx context.Context, store store.Storage) error {
 			return err
 		}
 
-		module, err := store.GetModuleByName(ctx, moduleName)
+		module, err := storage.GetModuleByName(ctx, moduleName)
 		if err != nil {
 			if !errors.Is(err, pgx.ErrNoRows) {
 				return err
@@ -80,18 +80,18 @@ func ParseQuestions(ctx context.Context, store store.Storage) error {
 				CreatedAt: now,
 				UpdatedAt: now,
 			}
-			if err = store.CreateModule(ctx, module); err != nil {
+			if err = storage.CreateModule(ctx, module); err != nil {
 				return err
 			}
 		}
 
 		now := time.Now()
-		activeCard, err := store.GetActiveCardByUID(ctx, int(q.UID))
+		activeCard, err := storage.GetActiveCardByUID(ctx, int(q.UID))
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		if err == nil && activeCard != nil {
-			if err := store.DeactivateCardByID(ctx, activeCard.ID, now); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			if err := storage.DeactivateCardByID(ctx, activeCard.ID, now); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 				return err
 			}
 		}
@@ -111,7 +111,7 @@ func ParseQuestions(ctx context.Context, store store.Storage) error {
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
-		if err := store.CreateCard(ctx, card); err != nil {
+		if err := storage.CreateCard(ctx, card); err != nil {
 			return err
 		}
 	}
