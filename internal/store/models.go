@@ -27,6 +27,17 @@ type User struct {
 	UpdatedAt time.Time
 }
 
+type LeaderboardEntry struct {
+	ID              int         `json:"id"`
+	Username        null.String `json:"username"`
+	FirstName       string      `json:"first_name"`
+	LastName        null.String `json:"last_name"`
+	RememberCount   int         `json:"remember_count"`
+	ForgotCount     int         `json:"forgot_count"`
+	AnsweredCount   int         `json:"answered_count"`
+	StartedSessions int         `json:"started_sessions"`
+}
+
 type Module struct {
 	ID        int
 	UUID      string

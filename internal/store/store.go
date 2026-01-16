@@ -36,6 +36,7 @@ type Storage interface {
 	GetUserAnswerByUUID(ctx context.Context, uuid string) (*UserAnswer, error)
 	UpdateUserAnswer(ctx context.Context, ua *UserAnswer) error
 
+	GetLeaderboard(ctx context.Context) ([]LeaderboardEntry, error)
 	GetUserByID(ctx context.Context, id int) (*User, error)
 	GetUserByTID(ctx context.Context, tid int64) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)

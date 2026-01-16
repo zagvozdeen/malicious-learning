@@ -15,4 +15,4 @@ deploy: build
 #	scp deploy/nginx.conf root@185.221.214.4:/etc/nginx/sites-available/ml.creavo.ru
 #	scp deploy/malicious-learning.service root@185.221.214.4:/etc/systemd/system
 	ssh root@185.221.214.4 "systemctl daemon-reload && systemctl restart malicious-learning.service && nginx -s reload"
-	rm malicious-learning
+	rm malicious-learning && rm -rf dist

@@ -91,3 +91,49 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, 
 	}
 	return user, nil
 }
+
+func (s *Store) GetLeaderboard(ctx context.Context) ([]LeaderboardEntry, error) {
+	rows, err := s.querier(ctx).Query(ctx, `
+		SELECT
+			u.id,
+			u.username,
+			u.first_name,
+			u.last_name,
+			COUNT(ua.id) FILTER (WHERE ua.status = 'remember') AS remember_count,
+			COUNT(ua.id) FILTER (WHERE ua.status = 'forgot') AS forgot_count,
+			COUNT(ua.id) FILTER (WHERE ua.status in ('remember', 'forgot')) AS answered_count,
+			COUNT(DISTINCT ts.id) AS started_sessions
+		FROM users u
+		LEFT JOIN test_sessions ts ON ts.user_id = u.id
+		LEFT JOIN user_answers ua ON ua.test_session_id = ts.id
+		GROUP BY u.id, u.username, u.first_name, u.last_name
+		ORDER BY answered_count DESC, u.id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	entries := make([]LeaderboardEntry, 0)
+	for rows.Next() {
+		var entry LeaderboardEntry
+		err = rows.Scan(
+			&entry.ID,
+			&entry.Username,
+			&entry.FirstName,
+			&entry.LastName,
+			&entry.RememberCount,
+			&entry.ForgotCount,
+			&entry.AnsweredCount,
+			&entry.StartedSessions,
+		)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
