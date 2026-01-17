@@ -6,7 +6,7 @@
     <div class="flex flex-col gap-4 w-full">
       <AppSpinner v-if="loading" />
       <ExamCard
-        v-else
+        v-if="!loading && ts && ts.is_active"
         :front="currentQuestion.question"
         :back="currentQuestion.answer"
       >
@@ -19,9 +19,59 @@
         >[вы вспомнили]</span>
       </ExamCard>
 
+      <div
+        v-if="ts && !ts.is_active"
+        class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg"
+      >
+        <div class="text-center uppercase text-sm font-bold py-1 select-none">
+          Результаты
+        </div>
+        <span class="h-px w-full bg-gray-500/20" />
+        <div
+          v-if="loadingResults"
+          class="flex flex-col gap-4 my-2 p-4"
+        >
+          <span class="text-center font-bold">Рекомендации рассчитываются</span>
+          <AppSpinner />
+        </div>
+        <div
+          v-else
+          class="p-4"
+        >
+          <div
+            v-if="ts.recommendations"
+            v-html="ts.recommendations"
+            class="text-justify"
+          />
+          <div
+            v-else
+            class="text-center font-medium"
+          >
+            Не удалось получить рекомендации, пожалуйста, попробуйте начать новый тест чтобы получить рекомендации
+          </div>
+        </div>
+        <span class="h-px w-full bg-gray-500/20" />
+        <div class="grid sm:grid-cols-10 grid-cols-5 gap-2 p-4">
+          <div
+            v-for="q in questions"
+            :key="q.id"
+            class="rounded text-center font-bold"
+            :class="{ [UserAnswerStatusColors[q.status]]: true }"
+          >
+            {{ q.uid }}
+          </div>
+        </div>
+        <router-link
+          :to="{ name: 'main' }"
+          class="hover:bg-gray-500/20 cursor-pointer p-4 rounded-b-4xl font-medium bg-gray-500/15 text-center"
+        >
+          На главную
+        </router-link>
+      </div>
+
       <div class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2">
         <div
-          v-if="!loading"
+          v-if="!loading && ts && ts.is_active"
           class="h-8 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
           :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
         >
@@ -100,6 +150,7 @@ const fetcher = useFetch()
 const notify = useNotifications()
 const currentQuestionIndex = ref(0)
 const loading = ref(true)
+const loadingResults = ref(false)
 const ts = ref<TestSession | null>(null)
 const questions = ref<FullUserAnswer[]>([])
 const swipeDiv = useTemplateRef('swipeDiv')
@@ -148,8 +199,14 @@ const updateUserAnswerStatus = (uuid: string, status: UserAnswerStatus) => {
         onClickNext()
         updateUserAnswer(data.data.uuid, data.data.status)
 
-        if (!data.test_session.is_active) {
-          notify.info('Вы успешно прошли весь тест, поздравляю!')
+        if (ts.value) {
+          ts.value.is_active = data.test_session.is_active
+          ts.value.recommendations = data.test_session.recommendations
+          ts.value.updated_at = data.test_session.updated_at
+
+          if (!ts.value.is_active) {
+            notify.info('Вы успешно прошли весь тест, поздравляю!')
+          }
         }
       }
     })
@@ -172,6 +229,20 @@ const handleGesture = () => {
     } else {
       onClickNext()
     }
+  }
+}
+
+const handleRecommendationsEnd = (msg: MessageEvent) => {
+  loadingResults.value = false
+  if (ts.value) {
+    ts.value.recommendations = msg.data
+  }
+}
+
+const handleRecommendationsStart = (msg: MessageEvent) => {
+  loadingResults.value = true
+  if (ts.value) {
+    ts.value.recommendations = msg.data
   }
 }
 
@@ -208,11 +279,17 @@ onMounted(() => {
       router.push({ name: 'main' })
     })
   }
+
+  state.getES()?.addEventListener('get-recommendations-start', handleRecommendationsStart)
+  state.getES()?.addEventListener('get-recommendations-end', handleRecommendationsEnd)
 })
 
 onUnmounted(() => {
   if (state.isTelegramEnv()) {
     window.Telegram.WebApp.BackButton.hide()
   }
+
+  state.getES()?.removeEventListener('get-recommendations-start', handleRecommendationsStart)
+  state.getES()?.removeEventListener('get-recommendations-end', handleRecommendationsEnd)
 })
 </script>

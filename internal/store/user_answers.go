@@ -2,13 +2,64 @@ package store
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
 
+type UserAnswerStatus string
+
+const (
+	UserAnswerStatusNull     UserAnswerStatus = "null"
+	UserAnswerStatusRemember UserAnswerStatus = "remember"
+	UserAnswerStatusForgot   UserAnswerStatus = "forgot"
+)
+
+func ParseUserAnswerStatus(s string) (UserAnswerStatus, error) {
+	switch s {
+	case string(UserAnswerStatusNull):
+		return UserAnswerStatusNull, nil
+	case string(UserAnswerStatusRemember):
+		return UserAnswerStatusRemember, nil
+	case string(UserAnswerStatusForgot):
+		return UserAnswerStatusForgot, nil
+	default:
+		return "", fmt.Errorf("invalid user answer status: %s", s)
+	}
+}
+
+type UserAnswer struct {
+	ID            int              `json:"id"`
+	UUID          string           `json:"uuid"`
+	CardID        int              `json:"card_id"`
+	TestSessionID int              `json:"test_session_id"`
+	Status        UserAnswerStatus `json:"status"`
+	CreatedAt     time.Time        `json:"created_at"`
+	UpdatedAt     time.Time        `json:"updated_at"`
+}
+
+type FullUserAnswer struct {
+	UserAnswer
+
+	UID        int    `json:"uid"`
+	Answer     string `json:"answer"`
+	Question   string `json:"question"`
+	ModuleID   int    `json:"module_id"`
+	ModuleName string `json:"module_name"`
+}
+
+type TestSessionSummary struct {
+	GroupUUID     string    `json:"group_uuid"`
+	CountNull     int       `json:"count_null"`
+	CountRemember int       `json:"count_remember"`
+	CountForget   int       `json:"count_forget"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
 func (s *Store) GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]FullUserAnswer, error) {
 	rows, err := s.querier(ctx).Query(ctx, `
-		SELECT ua.id, ua.uuid, ua.card_id, ua.test_session_id, ua.status, ua.created_at, ua.updated_at, c.answer, c.question, c.module_id, m.name
+		SELECT ua.id, ua.uuid, ua.card_id, ua.test_session_id, ua.status, ua.created_at, ua.updated_at, c.uid, c.answer, c.question, c.module_id, m.name
 		FROM user_answers ua
 		JOIN cards c ON c.id = ua.card_id
 		JOIN modules m ON m.id = c.module_id
@@ -31,6 +82,7 @@ func (s *Store) GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]Fu
 			&answer.Status,
 			&answer.CreatedAt,
 			&answer.UpdatedAt,
+			&answer.UID,
 			&answer.Answer,
 			&answer.Question,
 			&answer.ModuleID,

@@ -9,6 +9,19 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type Card struct {
+	ID        int
+	UID       int
+	UUID      string
+	Question  string
+	Answer    string
+	ModuleID  int
+	IsActive  bool
+	Hash      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 func (s *Store) GetCards(ctx context.Context, moduleIDs []int) ([]Card, error) {
 	if len(moduleIDs) == 0 {
 		return nil, nil

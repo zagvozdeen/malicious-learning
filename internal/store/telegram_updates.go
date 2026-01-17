@@ -1,6 +1,16 @@
 package store
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+	"time"
+)
+
+type TelegramUpdate struct {
+	ID     int64
+	Update json.RawMessage
+	Date   time.Time
+}
 
 func (s *Store) CreateTelegramUpdate(ctx context.Context, update *TelegramUpdate) (err error) {
 	_, err = s.querier(ctx).Exec(

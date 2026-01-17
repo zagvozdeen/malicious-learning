@@ -1,6 +1,23 @@
 package store
 
-import "context"
+import (
+	"context"
+	"time"
+
+	"github.com/zagvozdeen/malicious-learning/internal/db/null"
+)
+
+type TestSession struct {
+	ID              int         `json:"id"`
+	UUID            string      `json:"uuid"`
+	UserID          int         `json:"user_id"`
+	ModuleIDs       []int       `json:"module_ids"`
+	IsShuffled      bool        `json:"is_shuffled"`
+	IsActive        bool        `json:"is_active"`
+	Recommendations null.String `json:"recommendations"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+}
 
 func (s *Store) GetTestSessionByUUID(ctx context.Context, uuid string) (*TestSession, error) {
 	session := &TestSession{}

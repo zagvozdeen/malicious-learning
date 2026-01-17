@@ -1,6 +1,35 @@
 package store
 
-import "context"
+import (
+	"context"
+	"time"
+
+	"github.com/zagvozdeen/malicious-learning/internal/db/null"
+)
+
+type User struct {
+	ID        int
+	TID       null.Int
+	UUID      string
+	FirstName string
+	LastName  null.String
+	Username  null.String
+	Email     null.String
+	Password  null.String
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type LeaderboardEntry struct {
+	ID              int         `json:"id"`
+	Username        null.String `json:"username"`
+	FirstName       string      `json:"first_name"`
+	LastName        null.String `json:"last_name"`
+	RememberCount   int         `json:"remember_count"`
+	ForgotCount     int         `json:"forgot_count"`
+	AnsweredCount   int         `json:"answered_count"`
+	StartedSessions int         `json:"started_sessions"`
+}
 
 func (s *Store) GetUserByTID(ctx context.Context, tid int64) (*User, error) {
 	user := &User{}

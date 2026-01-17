@@ -2,6 +2,7 @@ const state = {
   tma: window.Telegram?.WebApp?.initData || null,
   token: localStorage.getItem('token'),
   apiUrl: import.meta.env.VITE_API_URL,
+  es: null as EventSource | null,
 }
 
 export const useState = () => {
@@ -13,6 +14,10 @@ export const useState = () => {
     localStorage.setItem('token', token)
     state.token = token
   }
+  const setES = (es: EventSource | null) => {
+    state.es = es
+  }
+  const getES = () => state.es
 
   return {
     isTelegramEnv,
@@ -20,5 +25,7 @@ export const useState = () => {
     getAuthorizationHeader,
     getApiUrl,
     setToken,
+    setES,
+    getES,
   }
 }

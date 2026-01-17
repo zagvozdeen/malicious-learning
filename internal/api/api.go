@@ -15,18 +15,24 @@ import (
 )
 
 type Service struct {
-	ctx   context.Context
-	cfg   *config.Config
-	log   *slog.Logger
-	store store.Storage
+	ctx          context.Context
+	cfg          *config.Config
+	log          *slog.Logger
+	store        store.Storage
+	processingTS sync.Map
+	events       chan Event
+	flushers     sync.Map
 }
 
 func New(ctx context.Context, cfg *config.Config, log *slog.Logger, store store.Storage) *Service {
 	return &Service{
-		ctx:   ctx,
-		cfg:   cfg,
-		log:   log,
-		store: store,
+		ctx:          ctx,
+		cfg:          cfg,
+		log:          log,
+		store:        store,
+		processingTS: sync.Map{},
+		events:       make(chan Event, 10),
+		flushers:     sync.Map{},
 	}
 }
 
@@ -64,6 +70,13 @@ func (s *Service) Run() {
 		}
 		s.log.Info("Questions parsed")
 	})
+	wg.Go(func() {
+		if err := s.loopEvent(); err != nil {
+			s.log.Warn("Failed to handle events", slog.Any("err", err))
+			return
+		}
+		s.log.Info("Event loop stopped")
+	})
 	select {
 	case <-time.After(time.Millisecond * 500):
 		s.log.Info(fmt.Sprintf("Server started on %s", addr))
@@ -98,6 +111,7 @@ func (s *Service) getRoutes() *http.ServeMux {
 	mux.HandleFunc("POST /api/test-sessions", s.auth(s.createTestSession))
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
 	mux.HandleFunc("GET /api/leaderboard", s.auth(s.getLeaderboard))
+	mux.HandleFunc("GET /api/events", s.sseAuth(s.getEvents))
 
 	return mux
 }

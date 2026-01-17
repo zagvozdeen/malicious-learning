@@ -1,6 +1,17 @@
 package store
 
-import "context"
+import (
+	"context"
+	"time"
+)
+
+type Module struct {
+	ID        int
+	UUID      string
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
 
 func (s *Store) GetModuleByName(ctx context.Context, name string) (*Module, error) {
 	module := &Module{}

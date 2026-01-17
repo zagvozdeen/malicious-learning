@@ -6,6 +6,7 @@ import App from '@/App.vue'
 import CardPage from '@/pages/CardPage.vue'
 import MainPage from '@/pages/MainPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
+import { useEvents } from '@/composables/useEvents.ts'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -17,6 +18,8 @@ const router = createRouter({
 })
 
 const state = useState()
+
+useEvents().getEventSource()
 
 router.beforeEach((to, _from, next) => {
   if (state.isTelegramEnv()) {

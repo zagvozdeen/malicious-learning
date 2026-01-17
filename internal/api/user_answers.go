@@ -4,6 +4,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -85,6 +86,14 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 		}
 	}
 	s.store.Commit(ctx)
+
+	if still-1 == 0 {
+		go func() {
+			if err = s.getUserRecommendationsByTestSessionID(user, ts.ID); err != nil {
+				s.log.Error("Failed to create recommendations", slog.Any("err", err))
+			}
+		}()
+	}
 
 	return rData(http.StatusOK, updateUserAnswerResponse{
 		UserAnswer:  ua,

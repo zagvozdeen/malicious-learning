@@ -22,6 +22,8 @@ type Config struct {
 	TelegramBotEnabled bool
 	RootUserName       string
 	RootUserPassword   string
+	NeuroAPI           string
+	NeuroToken         string
 }
 
 func New() *Config {
@@ -43,5 +45,7 @@ func New() *Config {
 		TelegramBotEnabled: os.Getenv("TG_BOT_ENABLED") == "true",
 		RootUserName:       os.Getenv("ROOT_USER_NAME"),
 		RootUserPassword:   os.Getenv("ROOT_USER_PASSWORD"),
+		NeuroAPI:           os.Getenv("NEURO_API"),
+		NeuroToken:         os.Getenv("NEURO_TOKEN"),
 	}
 }

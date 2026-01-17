@@ -41,6 +41,8 @@ type Storage interface {
 	GetUserByTID(ctx context.Context, tid int64) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	CreateUser(ctx context.Context, user *User) error
+
+	CreateChatCompletions(ctx context.Context, cc *ChatCompletions) error
 }
 
 type Store struct {

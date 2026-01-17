@@ -22,6 +22,7 @@ export interface UserAnswer {
 
 export interface FullUserAnswer {
     id: number
+    uid: number
     uuid: string
     card_id: number
     test_session_id: number
