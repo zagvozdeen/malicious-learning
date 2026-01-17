@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-dvh w-full flex flex-col gap-4 items-center justify-center">
+  <div class="min-h-dvh w-full flex flex-col gap-4 items-center justify-center py-6">
     <ul class="flex flex-col gap-px w-full rounded-2xl border border-gray-500/30 overflow-hidden">
       <li class="w-full">
         <button
@@ -69,26 +69,29 @@
     >
       <li
         class="w-full"
-        v-for="(testSession, index) in testSessions"
-        :key="testSession.group_uuid"
+        v-for="(ts, index) in testSessions"
+        :key="ts.uuid"
       >
         <router-link
           class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
           type="button"
-          :to="{ name: 'cards', params: { uuid: testSession.group_uuid } }"
+          :to="{ name: 'cards', params: { uuid: ts.uuid } }"
         >
-          <span
-            class="size-6 flex items-center justify-center rounded-lg"
-            :class="{[colors[index % 5] as string]: true}"
-          >
-            <i
-              class="bi text-sm flex"
-              :class="{[`bi-${index % 10 + 1}-circle-fill`]: true}"
-            />
+          <span class="size-6 flex items-center justify-center rounded-lg bg-gray-500">
+            <span class="text-gray-200 font-bold">{{ index + 1 }}</span>
           </span>
-          <span class="text-left text-sm font-medium">Тест от {{ format(testSession.created_at, "dd.MM.yyyy HH:mm:ss") }}</span>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-1">
+              <span class="text-left text-sm font-medium">Тест от {{ format(ts.created_at, "dd.MM.yyyy HH:mm:ss") }}</span>
+              <i
+                v-if="!ts.is_active"
+                class="bi bi-check-all text-lg flex"
+              />
+            </div>
+            <span class="text-gray-400 text-xs">{{ ts.is_shuffled ? 'Вопросы вперемешку' : 'Вопросы по порядку' }}, {{ ts.module_ids.length == 1 ? (ts.module_ids[0] == 1 ? 'только теория' : 'только практика') : 'теория и практика' }}</span>
+          </div>
           <span class="flex items-center gap-1 text-gray-400">
-            <span class="font-semibold"><span class="text-xs text-green-400 font-semibold">{{ testSession.count_remember }}</span>/<span class="text-xs text-red-400">{{ testSession.count_forget }}</span></span>
+            <AppPercent :ts="ts" />
             <i class="bi bi-chevron-right text-sm flex" />
           </span>
         </router-link>
@@ -104,6 +107,7 @@ import { onMounted, ref } from 'vue'
 import type { TestSessionSummary } from '@/types.ts'
 import { format } from 'date-fns'
 import { useNotifications } from '@/composables/useNotifications.ts'
+import AppPercent from '@/components/AppPercent.vue'
 
 const router = useRouter()
 const fetcher = useFetch()
@@ -141,8 +145,6 @@ const onOnlyTheoryQuestions = () => {
 const onOnlyPracticeQuestions = () => {
   createTestSession(false, [2])
 }
-
-const colors = ['bg-green-400', 'bg-yellow-400', 'bg-blue-400', 'bg-red-400', 'bg-orange-400']
 
 onMounted(() => {
   fetcher

@@ -2,11 +2,12 @@ import '@/style.css'
 import { createApp } from 'vue'
 import { useState } from '@/composables/useState.ts'
 import { createRouter, createWebHistory } from 'vue-router'
+import { useEvents } from '@/composables/useEvents.ts'
 import App from '@/App.vue'
 import CardPage from '@/pages/CardPage.vue'
 import MainPage from '@/pages/MainPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
-import { useEvents } from '@/composables/useEvents.ts'
+import StatsPage from '@/pages/StatsPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,6 +15,7 @@ const router = createRouter({
     { path: '/', name: 'main', component: MainPage },
     { path: '/login', name: 'login', component: LoginPage },
     { path: '/cards/:uuid', name: 'cards', component: CardPage },
+    { path: '/stats', name: 'stats', component: StatsPage },
   ],
 })
 

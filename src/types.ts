@@ -50,7 +50,11 @@ export const UserAnswerStatusColors: Record<UserAnswerStatus, string> = {
 } as const
 
 export interface TestSessionSummary {
-    group_uuid: string
+    uuid: string
+    is_active: boolean
+    is_shuffled: boolean
+    module_ids: number[]
+    has_recommendations: boolean
     count_null: number
     count_remember: number
     count_forget: number

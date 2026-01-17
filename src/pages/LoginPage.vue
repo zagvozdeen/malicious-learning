@@ -36,8 +36,10 @@ const onSubmitForm = () => {
   fetcher
     .getToken(form.username, form.password)
     .then(data => {
-      state.setToken(data.token)
-      router.push({ name: 'main' })
+      if (data) {
+        state.setToken(data.token)
+        router.push({ name: 'main' })
+      }
     })
 }
 </script>

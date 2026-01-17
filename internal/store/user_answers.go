@@ -50,11 +50,15 @@ type FullUserAnswer struct {
 }
 
 type TestSessionSummary struct {
-	GroupUUID     string    `json:"group_uuid"`
-	CountNull     int       `json:"count_null"`
-	CountRemember int       `json:"count_remember"`
-	CountForget   int       `json:"count_forget"`
-	CreatedAt     time.Time `json:"created_at"`
+	UUID               string    `json:"uuid"`
+	IsActive           bool      `json:"is_active"`
+	IsShuffled         bool      `json:"is_shuffled"`
+	ModuleIDs          []int     `json:"module_ids"`
+	HasRecommendations bool      `json:"has_recommendations"`
+	CountNull          int       `json:"count_null"`
+	CountRemember      int       `json:"count_remember"`
+	CountForget        int       `json:"count_forget"`
+	CreatedAt          time.Time `json:"created_at"`
 }
 
 func (s *Store) GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]FullUserAnswer, error) {
@@ -103,6 +107,10 @@ func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionS
 	rows, err := s.querier(ctx).Query(ctx, `
 		SELECT
 			ts.uuid,
+			ts.is_active,
+			ts.is_shuffled,
+			ts.module_ids,
+			ts.recommendations IS NOT NULL,
 			count(ua.id) FILTER ( WHERE ua.status = 'null' ) count_null,
 			count(ua.id) FILTER ( WHERE ua.status = 'remember' ) count_remember,
 			count(ua.id) FILTER ( WHERE ua.status = 'forgot' ) count_forget,
@@ -110,7 +118,7 @@ func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionS
 		FROM test_sessions ts
 		LEFT JOIN user_answers ua ON ua.test_session_id = ts.id
 		WHERE ts.user_id = $1
-		GROUP BY ts.id, ts.uuid, ts.created_at
+		GROUP BY ts.id, ts.uuid, ts.is_active, ts.is_shuffled, ts.module_ids, ts.recommendations IS NOT NULL, ts.created_at
 		ORDER BY ts.created_at DESC
 	`, userID)
 	if err != nil {
@@ -122,7 +130,11 @@ func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionS
 	for rows.Next() {
 		var session TestSessionSummary
 		err = rows.Scan(
-			&session.GroupUUID,
+			&session.UUID,
+			&session.IsActive,
+			&session.IsShuffled,
+			&session.ModuleIDs,
+			&session.HasRecommendations,
 			&session.CountNull,
 			&session.CountRemember,
 			&session.CountForget,

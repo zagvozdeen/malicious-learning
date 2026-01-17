@@ -1,7 +1,12 @@
 <template>
   <div
     ref="swipeDiv"
-    class="min-h-dvh w-full flex items-center justify-center pb-34 pt-6"
+    class="min-h-dvh w-full flex items-center justify-center"
+    :class="{
+      'pb-34': ts && ts.is_active,
+      'pb-12': !ts || (ts && !ts.is_active),
+    }"
+    style="padding-top: calc(var(--tg-content-safe-area-inset-top, calc(var(--spacing) * 12)) + var(--tg-safe-area-inset-top, 0px))"
   >
     <div class="flex flex-col gap-4 w-full">
       <AppSpinner v-if="loading" />
@@ -69,9 +74,12 @@
         </router-link>
       </div>
 
-      <div class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2">
+      <div
+        v-if="ts && ts.is_active"
+        class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2"
+      >
         <div
-          v-if="!loading && ts && ts.is_active"
+          v-if="!loading"
           class="h-8 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
           :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
         >
