@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -20,6 +21,7 @@ type Config struct {
 	APIPort            string
 	TelegramBotToken   string
 	TelegramBotEnabled bool
+	TelegramBotGroup   int
 	RootUserName       string
 	RootUserPassword   string
 	NeuroAPI           string
@@ -43,9 +45,19 @@ func New() *Config {
 		APIPort:            "8081",
 		TelegramBotToken:   os.Getenv("TG_BOT_TOKEN"),
 		TelegramBotEnabled: os.Getenv("TG_BOT_ENABLED") == "true",
+		TelegramBotGroup:   parseInt("TG_BOT_GROUP", 0),
 		RootUserName:       os.Getenv("ROOT_USER_NAME"),
 		RootUserPassword:   os.Getenv("ROOT_USER_PASSWORD"),
 		NeuroAPI:           os.Getenv("NEURO_API"),
 		NeuroToken:         os.Getenv("NEURO_TOKEN"),
 	}
+}
+
+func parseInt(key string, fallback int) int {
+	if v, ok := os.LookupEnv(key); ok {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return fallback
 }

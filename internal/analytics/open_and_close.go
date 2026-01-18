@@ -1,0 +1,36 @@
+package analytics
+
+import (
+	"encoding/json/v2"
+	"log/slog"
+	"os"
+)
+
+func (a *Analytics) open() {
+	b, err := os.ReadFile("metrics.json")
+	if err != nil {
+		a.log.Warn("Failed to open and read metrics file", slog.Any("err", err))
+		return
+	}
+	err = json.Unmarshal(b, a)
+	if err != nil {
+		a.log.Warn("Failed to parse metrics file", slog.Any("err", err))
+	}
+}
+
+func (a *Analytics) close() {
+	file, err := os.OpenFile("metrics.json", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		a.log.Warn("Failed to open metrics file", slog.Any("err", err))
+		return
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			a.log.Warn("Failed to close metrics file", slog.Any("err", closeErr))
+		}
+	}()
+	err = json.MarshalWrite(file, a)
+	if err != nil {
+		a.log.Warn("Failed to marshal metrics to file", slog.Any("err", err))
+	}
+}

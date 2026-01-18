@@ -19,6 +19,7 @@ func New(cfg *config.Config) (*slog.Logger, func()) {
 			closeErr := file.Close()
 			if closeErr != nil {
 				slog.Error("Failed to close file", slog.Any("err", closeErr))
+				return
 			}
 			slog.Info("Logs file has been closed")
 		}

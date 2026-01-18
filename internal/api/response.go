@@ -5,11 +5,12 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/zagvozdeen/malicious-learning/internal/analytics"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
 
 type Response interface {
-	Response(w http.ResponseWriter, log *slog.Logger, user *store.User)
+	Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, user *store.User, metrics analytics.Metrics)
 }
 
 type ResponseError struct {
@@ -33,7 +34,7 @@ func rData(code int, d any) *ResponseData {
 	return &ResponseData{code: code, data: d}
 }
 
-func (r *ResponseError) Response(w http.ResponseWriter, log *slog.Logger, user *store.User) {
+func (r *ResponseError) Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, user *store.User, metrics analytics.Metrics) {
 	userID := 0
 	if user != nil {
 		userID = user.ID
@@ -44,9 +45,10 @@ func (r *ResponseError) Response(w http.ResponseWriter, log *slog.Logger, user *
 		slog.Int("user_id", userID),
 	)
 	http.Error(w, r.err.Error(), r.code)
+	metrics.AppResponsesTotalInc(req.Pattern, r.code)
 }
 
-func (r *ResponseData) Response(w http.ResponseWriter, log *slog.Logger, user *store.User) {
+func (r *ResponseData) Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, user *store.User, metrics analytics.Metrics) {
 	w.WriteHeader(r.code)
 	w.Header().Set("Content-Type", "application/json")
 	err := json.MarshalWrite(w, r.data)
@@ -61,4 +63,5 @@ func (r *ResponseData) Response(w http.ResponseWriter, log *slog.Logger, user *s
 			slog.Int("user_id", userID),
 		)
 	}
+	metrics.AppResponsesTotalInc(req.Pattern, r.code)
 }

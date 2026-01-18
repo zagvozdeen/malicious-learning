@@ -76,10 +76,10 @@ func (s *Service) auth(fn HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, res := s.checkAuth(r, r.Header.Get("Authorization"))
 		if res != nil {
-			res.Response(w, s.log, user)
+			res.Response(w, r, s.log, user, s.metrics)
 			return
 		}
-		fn(r, user).Response(w, s.log, user)
+		fn(r, user).Response(w, r, s.log, user, s.metrics)
 	}
 }
 
@@ -87,7 +87,7 @@ func (s *Service) sseAuth(fn SSEHandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, res := s.checkAuth(r, r.URL.Query().Get("token"))
 		if res != nil {
-			res.Response(w, s.log, user)
+			res.Response(w, r, s.log, user, s.metrics)
 			return
 		}
 
@@ -97,7 +97,7 @@ func (s *Service) sseAuth(fn SSEHandlerFunc) http.HandlerFunc {
 
 		flusher, ok := w.(http.Flusher)
 		if !ok {
-			rErr(http.StatusHTTPVersionNotSupported, errors.New("streaming not supported")).Response(w, s.log, user)
+			rErr(http.StatusHTTPVersionNotSupported, errors.New("streaming not supported")).Response(w, r, s.log, user, s.metrics)
 			return
 		}
 

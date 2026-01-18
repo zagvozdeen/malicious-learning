@@ -72,6 +72,7 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 	if err != nil {
 		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create test session: %w", err))
 	}
+	s.metrics.AppCreatedTestSessionsCountInc()
 
 	return rData(http.StatusOK, session)
 }

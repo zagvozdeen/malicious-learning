@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/zagvozdeen/malicious-learning/internal/analytics"
 	"github.com/zagvozdeen/malicious-learning/internal/api"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
 	"github.com/zagvozdeen/malicious-learning/internal/db"
@@ -19,9 +20,11 @@ func main() {
 	cfg := config.New()
 	log, stop := logger.New(cfg)
 	defer stop()
+	metrics, enough := analytics.New(log)
+	defer enough()
 	pool := db.New(ctx, cfg, log)
 	defer pool.Close()
 	storage := store.New(cfg, log, pool)
 
-	api.New(ctx, cfg, log, storage).Run()
+	api.New(ctx, cfg, log, storage, metrics).Run()
 }

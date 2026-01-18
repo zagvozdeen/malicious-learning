@@ -123,5 +123,6 @@ func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int
 		Event: "get-recommendations-end",
 		Data:  ts.Recommendations.V,
 	}
+	s.metrics.AppGeneratedRecommendationsCountInc()
 	return nil
 }

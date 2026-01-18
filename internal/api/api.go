@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-telegram/bot"
 	"github.com/zagvozdeen/malicious-learning"
+	"github.com/zagvozdeen/malicious-learning/internal/analytics"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
@@ -22,9 +24,12 @@ type Service struct {
 	processingTS sync.Map
 	events       chan Event
 	flushers     sync.Map
+	metrics      analytics.Metrics
+	bot          *bot.Bot
+	botStarted   chan struct{}
 }
 
-func New(ctx context.Context, cfg *config.Config, log *slog.Logger, store store.Storage) *Service {
+func New(ctx context.Context, cfg *config.Config, log *slog.Logger, store store.Storage, metrics analytics.Metrics) *Service {
 	return &Service{
 		ctx:          ctx,
 		cfg:          cfg,
@@ -33,6 +38,8 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger, store store.
 		processingTS: sync.Map{},
 		events:       make(chan Event, 10),
 		flushers:     sync.Map{},
+		metrics:      metrics,
+		botStarted:   make(chan struct{}),
 	}
 }
 
@@ -76,6 +83,13 @@ func (s *Service) Run() {
 			return
 		}
 		s.log.Info("Event loop stopped")
+	})
+	wg.Go(func() {
+		if err := s.startSendingMetrics(); err != nil {
+			s.log.Warn("Failed to start sending metrics", slog.Any("err", err))
+			return
+		}
+		s.log.Info("Metrics sender has been stopped")
 	})
 	select {
 	case <-time.After(time.Millisecond * 500):

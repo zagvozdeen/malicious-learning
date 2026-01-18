@@ -86,6 +86,7 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 		}
 	}
 	s.store.Commit(ctx)
+	s.metrics.AppUpdatedUserAnswersCountInc()
 
 	if still-1 == 0 {
 		go func() {

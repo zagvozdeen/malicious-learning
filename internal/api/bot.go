@@ -21,11 +21,13 @@ func (s *Service) startBot() error {
 		s.log.Info("Telegram bot disabled")
 		return nil
 	}
-	b, err := bot.New(s.cfg.TelegramBotToken, bot.WithDefaultHandler(s.defaultHandler))
+	var err error
+	s.bot, err = bot.New(s.cfg.TelegramBotToken, bot.WithDefaultHandler(s.defaultHandler))
 	if err != nil {
 		return err
 	}
-	b.Start(s.ctx)
+	close(s.botStarted)
+	s.bot.Start(s.ctx)
 	return nil
 }
 
@@ -45,6 +47,7 @@ func (s *Service) defaultHandler(ctx context.Context, b *bot.Bot, update *tgbotm
 	}
 
 	if update.Message == nil {
+		s.metrics.AppNotMessageUpdateCountInc()
 		return
 	}
 
@@ -107,7 +110,7 @@ func (s *Service) ensureTelegramUser(ctx context.Context, tgUser *tgbotmodels.Us
 		return err
 	}
 
-	return s.store.CreateUser(ctx, &storemodels.User{
+	err = s.store.CreateUser(ctx, &storemodels.User{
 		TID:       null.WrapInt(int(tgUser.ID)),
 		UUID:      uid.String(),
 		FirstName: strings.TrimSpace(tgUser.FirstName),
@@ -116,6 +119,11 @@ func (s *Service) ensureTelegramUser(ctx context.Context, tgUser *tgbotmodels.Us
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	})
+	if err != nil {
+		return err
+	}
+	s.metrics.AppUsersCreatedCountInc()
+	return nil
 }
 
 func extractTelegramUser(update *tgbotmodels.Update) *tgbotmodels.User {
