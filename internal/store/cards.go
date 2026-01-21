@@ -10,16 +10,16 @@ import (
 )
 
 type Card struct {
-	ID        int
-	UID       int
-	UUID      string
-	Question  string
-	Answer    string
-	ModuleID  int
-	IsActive  bool
-	Hash      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        int       `json:"id"`
+	UID       int       `json:"uid"`
+	UUID      string    `json:"uuid"`
+	Question  string    `json:"question"`
+	Answer    string    `json:"answer"`
+	ModuleID  int       `json:"module_id"`
+	IsActive  bool      `json:"is_active"`
+	Hash      string    `json:"hash"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (s *Store) GetCards(ctx context.Context, moduleIDs []int) ([]Card, error) {

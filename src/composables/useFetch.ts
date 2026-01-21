@@ -1,4 +1,4 @@
-import type { FullUserAnswer, TestSession, TestSessionSummary, UserAnswer, UserAnswerStatus } from '@/types.ts'
+import type { Card, FullUserAnswer, TestSession, TestSessionSummary, UserAnswer, UserAnswerStatus } from '@/types.ts'
 import { useState } from '@/composables/useState.ts'
 import { useNotifications } from '@/composables/useNotifications.ts'
 import { i18n } from '@/composables/useI18n.ts'
@@ -72,11 +72,22 @@ export const useFetch = () => {
     return await res.json() as { data: UserAnswer; test_session: TestSession }
   }
 
+  const getAllCards = async () => {
+    const res = await fetch(`${state.getApiUrl()}/api/cards`, {
+      headers: {
+        'Authorization': state.getAuthorizationHeader(),
+      },
+    })
+    if (await handleError(res)) return
+    return await res.json() as Card[]
+  }
+
   return {
     getToken,
     createTestSession,
     getTestSession,
     getTestSessions,
     updateUserAnswer,
+    getAllCards,
   }
 }

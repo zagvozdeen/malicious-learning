@@ -8,6 +8,7 @@ import CardPage from '@/pages/CardPage.vue'
 import MainPage from '@/pages/MainPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import StatsPage from '@/pages/StatsPage.vue'
+import CardsPage from '@/pages/CardsPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,6 +17,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: LoginPage },
     { path: '/cards/:uuid', name: 'cards', component: CardPage },
     { path: '/stats', name: 'stats', component: StatsPage },
+    { path: '/cards', name: 'pdf', component: CardsPage },
   ],
 })
 

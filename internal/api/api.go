@@ -126,6 +126,7 @@ func (s *Service) getRoutes() *http.ServeMux {
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
 	mux.HandleFunc("GET /api/leaderboard", s.auth(s.getLeaderboard))
 	mux.HandleFunc("GET /api/events", s.sseAuth(s.getEvents))
+	mux.HandleFunc("GET /api/cards", s.auth(s.getCards))
 
 	return mux
 }

@@ -14,7 +14,7 @@ import (
 )
 
 func (s *Service) startSendingMetrics() error {
-	if s.cfg.TelegramBotGroup == 0 {
+	if s.cfg.TelegramBotGroup == 0 && s.cfg.TelegramBotEnabled {
 		return errors.New("telegram bot group must be set")
 	}
 	ticker := time.NewTicker(time.Hour)

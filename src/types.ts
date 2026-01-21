@@ -71,3 +71,16 @@ export interface Notification {
 }
 
 export type PusherFunc = (level: Levels, msg: string, date: number) => void
+
+export interface Card {
+    id: number
+    uid: number
+    uuid: string
+    question: string
+    answer: string
+    module_id: number
+    is_active: boolean
+    hash: string
+    created_at: string
+    updated_at: string
+}
