@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-telegram/bot"
-	"github.com/zagvozdeen/malicious-learning"
+	"github.com/zagvozdeen/malicious-learning/data"
 	"github.com/zagvozdeen/malicious-learning/internal/analytics"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
@@ -71,7 +71,7 @@ func (s *Service) Run() {
 		s.log.Info("Bot stopped")
 	})
 	wg.Go(func() {
-		if err := malicious_learning.ParseQuestions(s.ctx, s.store); err != nil {
+		if err := data.ParseQuestions(s.ctx, s.store); err != nil {
 			s.log.Warn("Failed to parse data", slog.Any("err", err))
 			return
 		}
