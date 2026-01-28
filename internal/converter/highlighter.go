@@ -13,7 +13,7 @@ import (
 // styleName is the name of the style to use for highlighting.
 //
 // See all styles: https://github.com/alecthomas/chroma/tree/master/styles.
-const styleName = "monokailight"
+const styleName = "dracula"
 
 type highlighter struct {
 	formatter *html.Formatter

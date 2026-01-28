@@ -1,14 +1,15 @@
 import '@/style.css'
-import { createApp } from 'vue'
+import { createApp, h } from 'vue'
 import { useState } from '@/composables/useState.ts'
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, RouterView } from 'vue-router'
 import { useEvents } from '@/composables/useEvents.ts'
-import App from '@/App.vue'
 import CardPage from '@/pages/CardPage.vue'
 import MainPage from '@/pages/MainPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import StatsPage from '@/pages/StatsPage.vue'
 import CardsPage from '@/pages/CardsPage.vue'
+import NotificationProvider from '@/components/NotificationProvider.vue'
+import CreateTestSessionPage from '@/pages/CreateTestSessionPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,6 +19,7 @@ const router = createRouter({
     { path: '/cards/:uuid', name: 'cards', component: CardPage },
     { path: '/stats', name: 'stats', component: StatsPage },
     { path: '/cards', name: 'pdf', component: CardsPage },
+    { path: '/cards/create', name: 'cards.create', component: CreateTestSessionPage },
   ],
 })
 
@@ -37,4 +39,8 @@ router.beforeEach((to, _from, next) => {
   }
 })
 
-createApp(App).use(router).mount('#app')
+createApp({
+  setup: () => () => h('div', {
+    class: `mx-auto px-4 ${state.getRootClasses.value}`,
+  }, h(NotificationProvider, () => h(RouterView))),
+}).use(router).mount('#app')

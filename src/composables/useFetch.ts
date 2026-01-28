@@ -71,6 +71,14 @@ const getAllCards = async (state: State, notify: Notify) => {
   })
 }
 
+const getAllCourses = async (state: State, notify: Notify) => {
+  return fetchJson<Card[]>(notify, `${state.getApiUrl()}/api/courses`, {
+    headers: {
+      'Authorization': state.getAuthorizationHeader(),
+    },
+  })
+}
+
 export const useFetch = () => {
   const state = useState()
   const notify = useNotifications()
@@ -82,5 +90,6 @@ export const useFetch = () => {
     getTestSessions: () => getTestSessions(state, notify),
     updateUserAnswer: (uuid: string, status: UserAnswerStatus) => updateUserAnswer(state, notify, uuid, status),
     getAllCards: () => getAllCards(state, notify),
+    getAllCourses: () => getAllCourses(state, notify),
   }
 }
