@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/go-telegram/bot"
-	"github.com/zagvozdeen/malicious-learning/data"
 	"github.com/zagvozdeen/malicious-learning/internal/analytics"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
+	"github.com/zagvozdeen/malicious-learning/internal/converter"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
 
@@ -39,7 +39,7 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger, store store.
 		events:       make(chan Event, 10),
 		flushers:     sync.Map{},
 		metrics:      metrics,
-		botStarted:   make(chan struct{}),
+		botStarted:   make(chan struct{}, 1),
 	}
 }
 
@@ -71,7 +71,7 @@ func (s *Service) Run() {
 		s.log.Info("Bot stopped")
 	})
 	wg.Go(func() {
-		if err := data.ParseQuestions(s.ctx, s.store); err != nil {
+		if err := converter.Run(s.ctx, s.store); err != nil {
 			s.log.Warn("Failed to parse data", slog.Any("err", err))
 			return
 		}

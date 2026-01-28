@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/zagvozdeen/malicious-learning/internal/config"
@@ -21,13 +20,13 @@ type Storage interface {
 	CreateModule(ctx context.Context, module *Module) error
 
 	GetCourses(ctx context.Context) ([]Course, error)
+	GetCourseBySlug(ctx context.Context, slug string) (*Course, error)
 	CreateCourse(ctx context.Context, course *Course) error
 
 	GetCards(ctx context.Context, moduleIDs []int) ([]Card, error)
-	GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*Card, error)
-	GetActiveCardByUID(ctx context.Context, uid int) (*Card, error)
+	IsExistsCardByUIDAndHash(ctx context.Context, uid int, hash string) (bool, error)
 	CreateCard(ctx context.Context, card *Card) error
-	DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error
+	DeactivateCard(ctx context.Context, card *Card) error
 
 	CreateTestSession(ctx context.Context, session *TestSession, answers []UserAnswer) error
 	UpdateTestSession(ctx context.Context, session *TestSession) error

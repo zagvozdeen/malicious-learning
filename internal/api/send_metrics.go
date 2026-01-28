@@ -14,17 +14,21 @@ import (
 )
 
 func (s *Service) startSendingMetrics() error {
-	if s.cfg.TelegramBotGroup == 0 && s.cfg.TelegramBotEnabled {
+	if s.cfg.TelegramBotGroup == 0 {
 		return errors.New("telegram bot group must be set")
+	}
+	if !s.cfg.TelegramBotEnabled {
+		return errors.New("telegram bot disabled")
 	}
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
-	<-s.botStarted
-	old := s.sendMetrics(s.metrics.Clone())
+	var old analytics.Metrics = nil
 	for {
 		select {
 		case <-s.ctx.Done():
 			return nil
+		case <-s.botStarted:
+			old = s.sendMetrics(s.metrics.Clone())
 		case <-ticker.C:
 			old = s.sendMetrics(old)
 		}

@@ -26,7 +26,7 @@ func (s *Service) startBot() error {
 	if err != nil {
 		return err
 	}
-	close(s.botStarted)
+	s.botStarted <- struct{}{}
 	s.bot.Start(s.ctx)
 	return nil
 }

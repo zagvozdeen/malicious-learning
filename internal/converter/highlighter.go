@@ -15,12 +15,12 @@ import (
 // See all styles: https://github.com/alecthomas/chroma/tree/master/styles.
 const styleName = "monokailight"
 
-type Highlighter struct {
+type highlighter struct {
 	formatter *html.Formatter
 	style     *chroma.Style
 }
 
-func NewHighlighter(w io.Writer) (*Highlighter, error) {
+func newHighlighter(w io.Writer) (*highlighter, error) {
 	htmlFormatter := html.New(
 		html.WithClasses(true),
 		html.WithAllClasses(true),
@@ -40,13 +40,13 @@ func NewHighlighter(w io.Writer) (*Highlighter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Highlighter{
+	return &highlighter{
 		formatter: htmlFormatter,
 		style:     highlightStyle,
 	}, nil
 }
 
-func (h *Highlighter) HTMLHighlight(w io.Writer, source, lang string) error {
+func (h *highlighter) highlight(w io.Writer, source, lang string) error {
 	l := lexers.Get(lang)
 	if l == nil {
 		l = lexers.Analyse(source)

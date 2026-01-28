@@ -1,15 +1,14 @@
 package converter
 
 import (
-	"encoding/json"
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"io/fs"
-	"log/slog"
-	"net/url"
-	"os"
+	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,241 +18,186 @@ import (
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/google/uuid"
-	"github.com/zagvozdeen/malicious-learning/internal/config"
+	"github.com/jackc/pgx/v5"
+	"github.com/zagvozdeen/malicious-learning/data"
+	"github.com/zagvozdeen/malicious-learning/internal/store"
+	"gopkg.in/yaml.v3"
 )
 
-type Article struct {
-	ID      string `json:"id"`
-	Slug    string `json:"slug"`
-	Title   string `json:"title"`
-	Lead    string `json:"lead"`
-	Author  string `json:"author"`
-	Image   string `json:"image"`
-	Updated string `json:"updated"`
-
-	html  []byte
-	files []string
+type CourseDescription struct {
+	Name string `yaml:"name"`
 }
 
-type Converter struct {
-	config      config.Config
-	version     string
-	logger      *slog.Logger
-	head        *strings.Builder
-	highlighter *Highlighter
+type CardDescription struct {
+	Name   string   `yaml:"name"`
+	Module string   `yaml:"module"`
+	Tags   []string `yaml:"tags"`
 }
 
-func New(cfg config.Config) *Converter {
-	return &Converter{
-		config: cfg,
-		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		head:   &strings.Builder{},
-	}
-}
-
-func (c *Converter) Run() {
-	if !c.config.IsProduction {
-		c.logger.Info("You are running in development mode")
-	}
-	uid, err := uuid.NewV7()
+func Run(ctx context.Context, storage store.Storage) error {
+	entries, err := data.Courses.ReadDir("courses")
 	if err != nil {
-		c.logger.Error("Failed to generate new version uuid", "err", err)
-		return
+		return fmt.Errorf("failed to read courses dir: %w", err)
 	}
-	c.highlighter, err = NewHighlighter(c.head)
+	head := &strings.Builder{}
+	var hlighter *highlighter
+	hlighter, err = newHighlighter(head)
 	if err != nil {
-		c.logger.Error("Failed to create highlighter", "err", err)
-		return
+		return fmt.Errorf("failed to create highlighter: %w", err)
 	}
-	c.version = uid.String()
-	b, err := os.ReadFile("blog/blog.json")
+	ctx, err = storage.Begin(ctx)
 	if err != nil {
-		c.logger.Error("Failed to read file", "err", err)
-		return
+		return fmt.Errorf("failed to begin tx: %w", err)
 	}
-	_, _ = frontmatter.Parse(strings.NewReader(string(b)), nil)
-	var articles []Article
-	err = json.Unmarshal(b, &articles)
-	if err != nil {
-		c.logger.Error("Failed to unmarshal json", "err", err)
-		return
-	}
-	for i := range articles {
-		err = c.handleArticle(&articles[i])
-		if err != nil {
-			c.logger.Error("Failed to handle article", "err", err)
-			return
+	defer storage.Rollback(ctx)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			return fmt.Errorf("found file in courses dir: %s", entry.Name())
 		}
-	}
-	err = os.MkdirAll(fmt.Sprintf("dist/%s", c.version), os.ModePerm)
-	if err != nil && !errors.Is(err, fs.ErrExist) {
-		c.logger.Error("Failed to create dist directory", "err", err)
-		return
-	}
-	for i := range articles {
-		err = c.createFiles(&articles[i])
+		var course *store.Course
+		course, err = storage.GetCourseBySlug(ctx, entry.Name())
 		if err != nil {
-			c.logger.Error("Failed to create files", "err", err, "article", articles[i].ID)
-			return
-		}
-	}
-	b, err = os.ReadFile("dist/version")
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		c.logger.Error("Failed to read version file", "err", err)
-		return
-	}
-	err = os.WriteFile("dist/version", []byte(c.version), os.ModePerm)
-	if err != nil {
-		c.logger.Error("Failed to write version file", "err", err)
-		return
-	}
-	if b != nil {
-		old := string(b)
-		err = os.RemoveAll(fmt.Sprintf("dist/%s", old))
-		if err != nil {
-			c.logger.Error("Failed to remove old version", "err", err)
-			return
-		}
-		c.logger.Info("Old version removed", "version", old)
-	}
-	c.logger.Info("Conversion completed", "version", c.version)
-	c.logger.Info("Sitemap created")
-}
-
-func (c *Converter) handleArticle(a *Article) error {
-	md, err := os.ReadFile(fmt.Sprintf("blog/%s/index.md", a.ID))
-	if err != nil {
-		return err
-	}
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
-	p := parser.NewWithExtensions(extensions)
-	doc := p.Parse(md)
-	//ast.WalkFunc(doc, func(node ast.Node, entering bool) ast.WalkStatus {
-	//	if img, ok := node.(*ast.Image); ok && entering {
-	//		a.files = append(a.files, string(img.Destination))
-	//		img.Destination = []byte(fmt.Sprintf("%s/assets/%s/%s", c.config.AppURL, a.ID, img.Destination))
-	//		img.Attribute = &ast.Attribute{
-	//			Attrs: map[string][]byte{
-	//				"loading": []byte("lazy"),
-	//			},
-	//		}
-	//	}
-	//	return ast.GoToNext
-	//})
-	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	renderer := html.NewRenderer(html.RendererOptions{
-		Flags: htmlFlags,
-		RenderNodeHook: func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
-			if code, ok := node.(*ast.CodeBlock); ok {
-				err = c.highlighter.HTMLHighlight(w, string(code.Literal), string(code.Info))
-				if err != nil {
-					c.logger.Error("Failed to highlight code", "err", err)
-				}
-				return ast.GoToNext, true
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("failed to get course by slug: %w", err)
 			}
-			return ast.GoToNext, false
-		},
-	})
-	a.html = markdown.Render(doc, renderer)
+			var b []byte
+			b, err = data.Courses.ReadFile(fmt.Sprintf("courses/%s/0_index.yaml", entry.Name()))
+			if err != nil {
+				return fmt.Errorf("failed to read 0_index.yaml file in %s: %w", entry.Name(), err)
+			}
+			cd := &CourseDescription{}
+			err = yaml.Unmarshal(b, cd)
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal yaml to struct: %w", err)
+			}
+			var uid uuid.UUID
+			uid, err = uuid.NewV7()
+			if err != nil {
+				return fmt.Errorf("failed to generate course uuid: %w", err)
+			}
+			course = &store.Course{
+				UUID:      uid.String(),
+				Slug:      entry.Name(),
+				Name:      cd.Name,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			err = storage.CreateCourse(ctx, course)
+			if err != nil {
+				return fmt.Errorf("failed to create course: %w", err)
+			}
+		}
+		var cardEntries []fs.DirEntry
+		dirName := fmt.Sprintf("courses/%s", entry.Name())
+		cardEntries, err = data.Courses.ReadDir(dirName)
+		if err != nil {
+			return fmt.Errorf("failed to read dir %q: %w", dirName, err)
+		}
+		for _, cardEntry := range cardEntries {
+			if cardEntry.IsDir() {
+				return fmt.Errorf("dir %s haves a dir %q", dirName, cardEntry.Name())
+			}
+			if cardEntry.Name() == "0_index.yaml" {
+				continue
+			}
+			if path.Ext(cardEntry.Name()) != ".md" {
+				return fmt.Errorf("dir %s haves not markdown file %s", dirName, cardEntry.Name())
+			}
+			parts := strings.SplitN(cardEntry.Name(), "_", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("failed to split card %q", cardEntry.Name())
+			}
+			var id int
+			id, err = strconv.Atoi(parts[0])
+			if err != nil {
+				return fmt.Errorf("failed to parse card id: %w", err)
+			}
+			var b []byte
+			fileName := fmt.Sprintf("courses/%s/%s", entry.Name(), cardEntry.Name())
+			b, err = data.Courses.ReadFile(fileName)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", fileName, err)
+			}
+			cd := &CardDescription{}
+			b, err = frontmatter.Parse(bytes.NewReader(b), cd, frontmatter.NewFormat("---", "---", yaml.Unmarshal))
+			if err != nil {
+				return fmt.Errorf("failed to parse front-matter: %w", err)
+			}
+			extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
+			p := parser.NewWithExtensions(extensions)
+			doc := p.Parse(b)
+			renderer := html.NewRenderer(html.RendererOptions{
+				Flags: html.CommonFlags | html.HrefTargetBlank,
+				RenderNodeHook: func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+					if code, ok := node.(*ast.CodeBlock); ok {
+						err = hlighter.highlight(w, string(code.Literal), string(code.Info))
+						if err != nil {
+							return ast.GoToNext, false
+						}
+						return ast.GoToNext, true
+					}
+					return ast.GoToNext, false
+				},
+			})
+			xml := markdown.Render(doc, renderer)
+			var module *store.Module
+			module, err = storage.GetModuleByName(ctx, cd.Module)
+			if err != nil {
+				if !errors.Is(err, pgx.ErrNoRows) {
+					return fmt.Errorf("failed to get module by name: %w", err)
+				}
+				var uid uuid.UUID
+				uid, err = uuid.NewV7()
+				if err != nil {
+					return fmt.Errorf("failed to generate module uuid: %w", err)
+				}
+				module = &store.Module{
+					UUID:      uid.String(),
+					Name:      cd.Module,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+				err = storage.CreateModule(ctx, module)
+				if err != nil {
+					return fmt.Errorf("failed to create module: %w", err)
+				}
+			}
+			var uid uuid.UUID
+			uid, err = uuid.NewV7()
+			if err != nil {
+				return fmt.Errorf("failed to generate card uuid: %w", err)
+			}
+			card := &store.Card{
+				UID:       id,
+				UUID:      uid.String(),
+				Question:  cd.Name,
+				Answer:    string(xml) + head.String(),
+				Tags:      cd.Tags,
+				ModuleID:  module.ID,
+				CourseID:  course.ID,
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			card.Hash = card.GetHash()
+			var exists bool
+			exists, err = storage.IsExistsCardByUIDAndHash(ctx, card.UID, card.Hash)
+			if err != nil {
+				return fmt.Errorf("failed to check existing card: %w", err)
+			}
+			if exists {
+				continue
+			}
+			err = storage.DeactivateCard(ctx, card)
+			if err != nil {
+				return fmt.Errorf("failed to deactivate card: %w", err)
+			}
+			err = storage.CreateCard(ctx, card)
+			if err != nil {
+				return fmt.Errorf("failed to create card: %w", err)
+			}
+		}
+	}
+	storage.Commit(ctx)
 	return nil
-}
-
-func (c *Converter) createFiles(a *Article) error {
-	err := os.Mkdir(fmt.Sprintf("dist/%s/%s", c.version, a.Slug), os.ModePerm)
-	if err != nil {
-		return err
-	}
-	err = os.Mkdir(fmt.Sprintf("dist/assets/%s", a.ID), os.ModePerm)
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
-	for _, f := range a.files {
-		err = c.copyFile(
-			fmt.Sprintf("blog/%s/%s", a.ID, f),
-			fmt.Sprintf("dist/assets/%s/%s", a.ID, f),
-		)
-		if err != nil {
-			c.logger.Error("Failed to copy file", "err", err, "file", f)
-		}
-	}
-	t, err := template.ParseFiles("web/layout.html")
-	if err != nil {
-		return err
-	}
-	f, err := os.OpenFile(
-		fmt.Sprintf("dist/%s/%s/index.html", c.version, a.Slug),
-		os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
-		os.ModePerm,
-	)
-	if err != nil {
-		return err
-	}
-	type page struct {
-		Title     string
-		Lead      string
-		Author    string
-		Published string
-		CreatedAt string
-		UpdatedAt string
-		URL       template.URL
-		ImageURL  template.URL
-		Content   template.HTML
-		Head      template.HTML
-	}
-	published, err := time.Parse(time.DateOnly, a.ID)
-	if err != nil {
-		return fmt.Errorf("failed to parse published date: %w", err)
-	}
-	updated, err := time.Parse(time.DateOnly, a.Updated)
-	if err != nil {
-		return fmt.Errorf("failed to parse updated date: %w", err)
-	}
-	u, err := url.JoinPath(c.config.AppURL, "assets", a.ID, a.Image)
-	if err != nil {
-		return fmt.Errorf("failed to join image url: %w", err)
-	}
-	err = t.Execute(f, page{
-		Title:     a.Title,
-		Lead:      a.Lead,
-		Author:    a.Author,
-		Published: published.Format("2.01.2006"),
-		CreatedAt: published.Format(time.DateOnly),
-		UpdatedAt: updated.Format(time.DateOnly),
-		URL:       template.URL(c.config.AppURL),
-		ImageURL:  template.URL(u),
-		Content:   template.HTML(a.html),
-		Head:      template.HTML(c.head.String()),
-	})
-	if err1 := f.Close(); err1 != nil && err == nil {
-		err = err1
-	}
-	return err
-}
-
-func (c *Converter) copyFile(from, to string) error {
-	source, err := os.Open(from)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := source.Close()
-		if err != nil {
-			c.logger.Error("Failed to close source file", "err", err)
-		}
-	}()
-	destination, err := os.Create(to)
-	if err != nil {
-		if errors.Is(err, os.ErrExist) {
-			return nil
-		}
-		return err
-	}
-	defer func() {
-		err := destination.Close()
-		if err != nil {
-			c.logger.Error("Failed to close destination file", "err", err)
-		}
-	}()
-	_, err = io.Copy(destination, source)
-	return err
 }
