@@ -118,11 +118,11 @@ const createTestSession = (shuffle: boolean, modules: number[]) => {
   fetcher
     .createTestSession(shuffle, modules)
     .then(data => {
-      if (data) {
+      if (data.ok) {
         router.push({
           name: 'cards',
           params: {
-            uuid: data.uuid,
+            uuid: data.data.uuid,
           },
         })
         notify.info('Тест начат, вы можете начать прохождение!')
@@ -150,8 +150,8 @@ onMounted(() => {
   fetcher
     .getTestSessions()
     .then(data => {
-      if (data) {
-        testSessions.value = data.data
+      if (data.ok) {
+        testSessions.value = data.data.data
       }
     })
 })

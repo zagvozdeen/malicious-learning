@@ -1,6 +1,8 @@
 import { inject } from 'vue'
 import type { PusherFunc } from '@/types.ts'
 
+export type Notify = ReturnType<typeof useNotifications>
+
 export const useNotifications = () => {
   const pusher = inject('notifications') as PusherFunc
 

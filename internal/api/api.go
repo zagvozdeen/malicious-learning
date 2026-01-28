@@ -72,7 +72,7 @@ func (s *Service) Run() {
 	})
 	wg.Go(func() {
 		if err := malicious_learning.ParseQuestions(s.ctx, s.store); err != nil {
-			s.log.Warn("Failed to parse questions", slog.Any("err", err))
+			s.log.Warn("Failed to parse data", slog.Any("err", err))
 			return
 		}
 		s.log.Info("Questions parsed")

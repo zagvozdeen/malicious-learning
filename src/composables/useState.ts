@@ -8,11 +8,9 @@ const state = {
   rootClasses: ref<string>('max-w-md'),
 }
 
+export type State = ReturnType<typeof useState>
+
 export const useState = () => {
-  const isTelegramEnv = () => state.tma !== null
-  const isLoggedIn = () => state.token !== null
-  const getAuthorizationHeader = () => isTelegramEnv() ? `tma ${state.tma}` : `Bearer ${state.token}`
-  const getApiUrl = () => state.apiUrl
   const setToken = (token: string) => {
     localStorage.setItem('token', token)
     state.token = token
@@ -20,21 +18,19 @@ export const useState = () => {
   const setES = (es: EventSource | null) => {
     state.es = es
   }
-  const getES = () => state.es
-  const getRootClasses = state.rootClasses
   const setRootClasses = (v: string) => {
     state.rootClasses.value = v
   }
 
   return {
-    isTelegramEnv,
-    isLoggedIn,
-    getAuthorizationHeader,
-    getApiUrl,
-    setToken,
-    setES,
-    getES,
-    getRootClasses,
-    setRootClasses,
+    isTelegramEnv: () => state.tma !== null,
+    isLoggedIn: () => state.token !== null,
+    getAuthorizationHeader: () => state.tma !== null ? `tma ${state.tma}` : `Bearer ${state.token}`,
+    getApiUrl: () => state.apiUrl,
+    setToken: setToken,
+    setES: setES,
+    getES: () => state.es,
+    getRootClasses: state.rootClasses,
+    setRootClasses: setRootClasses,
   }
 }

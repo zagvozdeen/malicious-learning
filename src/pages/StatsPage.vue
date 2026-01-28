@@ -15,14 +15,14 @@ onMounted(() => {
   fetcher
     .getTestSessions()
     .then(data => {
-      if (data && ctx.value) {
+      if (data.ok && ctx.value) {
         const label = ['2026-01-16', '2026-01-17']
         const values = [
           { label: 'null', data: [0, 0] },
           { label: 'forget', data: [0, 0] },
           { label: 'remember', data: [0, 0] },
         ]
-        for (const ts of data.data) {
+        for (const ts of data.data.data) {
           const d = format(ts.created_at, 'yyyy-MM-dd')
           const i = label.findIndex(v => v === d)
           if (values[0] && values[0].data[i] !== undefined) values[0].data[i] += ts.count_null

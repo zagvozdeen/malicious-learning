@@ -1,4 +1,4 @@
-package malicious_learning
+package data
 
 import (
 	"bufio"
@@ -25,7 +25,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed questions/*.md
+//go:embed courses
 var s embed.FS
 
 type question struct {
@@ -40,7 +40,7 @@ type questionFrontmatter struct {
 	Module   string `yaml:"module"`
 }
 
-// ParseQuestions читает Markdown из ./questions.
+// ParseQuestions читает Markdown из ./data.
 // В каждом файле должен быть YAML frontmatter (question, module), а тело — Markdown-ответ.
 // По полям (module, question, answer) считает хэш (выбрать оптимальный хэш для этого)
 // в БД ищет такое же значение по `uid=? and hash=?`
@@ -48,7 +48,7 @@ type questionFrontmatter struct {
 // если такого значения нет, но находится по `uid=? and is_active=true`, то старое нужно пометить как is_active=false и создать новое с is_active=true
 // если такого значения нет даже по uid и is_active, то просто создать новую строчку
 func ParseQuestions(ctx context.Context, storage store.Storage) error {
-	questions, err := loadQuestionsFromMarkdown("questions")
+	questions, err := loadQuestionsFromMarkdown("data")
 	if err != nil {
 		return err
 	}

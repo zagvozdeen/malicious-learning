@@ -203,14 +203,14 @@ const updateUserAnswerStatus = (uuid: string, status: UserAnswerStatus) => {
   fetcher
     .updateUserAnswer(uuid, status)
     .then(data => {
-      if (data) {
+      if (data.ok) {
         onClickNext()
-        updateUserAnswer(data.data.uuid, data.data.status)
+        updateUserAnswer(data.data.data.uuid, data.data.data.status)
 
         if (ts.value) {
-          ts.value.is_active = data.test_session.is_active
-          ts.value.recommendations = data.test_session.recommendations
-          ts.value.updated_at = data.test_session.updated_at
+          ts.value.is_active = data.data.test_session.is_active
+          ts.value.recommendations = data.data.test_session.recommendations
+          ts.value.updated_at = data.data.test_session.updated_at
 
           if (!ts.value.is_active) {
             notify.info('Вы успешно прошли весь тест, поздравляю!')
@@ -258,9 +258,9 @@ onMounted(() => {
   fetcher
     .getTestSession(route.params.uuid as string)
     .then(data => {
-      if (data) {
-        ts.value = data.test_session
-        questions.value = data.user_answers
+      if (data.ok) {
+        ts.value = data.data.test_session
+        questions.value = data.data.user_answers
 
         const i = questions.value.findIndex(q => q.status === UserAnswerStatus.Null)
         if (i !== -1) {

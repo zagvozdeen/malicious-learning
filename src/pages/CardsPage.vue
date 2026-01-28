@@ -61,8 +61,8 @@ onMounted(() => {
   fetcher
     .getAllCards()
     .then(data => {
-      if (data) {
-        cards.value = data
+      if (data.ok) {
+        cards.value = data.data
       }
     })
 })
