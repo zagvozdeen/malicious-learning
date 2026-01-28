@@ -84,3 +84,12 @@ export interface Card {
     created_at: string
     updated_at: string
 }
+
+export interface Course {
+    id: number
+    uuid: string
+    slug: string
+    name: string
+    updated_at: string
+    created_at: string
+}

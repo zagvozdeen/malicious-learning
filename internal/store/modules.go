@@ -14,8 +14,37 @@ type Module struct {
 }
 
 func (s *Store) GetModulesByCourseID(ctx context.Context, id int) ([]Module, error) {
-	// for instance: select id, uuid, name, created_at, updated_at from modules where id in (select distinct module_id from cards where course_id = ?)
-	return nil, nil
+	rows, err := s.querier(ctx).Query(ctx, `
+		SELECT DISTINCT m.id, m.uuid, m.name, m.created_at, m.updated_at
+		FROM modules m
+		JOIN cards c ON c.module_id = m.id
+		WHERE c.course_id = $1
+		ORDER BY m.id
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	modules := make([]Module, 0)
+	for rows.Next() {
+		var module Module
+		err = rows.Scan(
+			&module.ID,
+			&module.UUID,
+			&module.Name,
+			&module.CreatedAt,
+			&module.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		modules = append(modules, module)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return modules, nil
 }
 
 func (s *Store) GetModuleByName(ctx context.Context, name string) (*Module, error) {

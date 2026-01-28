@@ -1,4 +1,12 @@
-import type { Card, FullUserAnswer, TestSession, TestSessionSummary, UserAnswer, UserAnswerStatus } from '@/types.ts'
+import type {
+  Card,
+  Course,
+  FullUserAnswer,
+  TestSession,
+  TestSessionSummary,
+  UserAnswer,
+  UserAnswerStatus,
+} from '@/types.ts'
 import { type State, useState } from '@/composables/useState.ts'
 import { type Notify, useNotifications } from '@/composables/useNotifications.ts'
 import { i18n } from '@/composables/useI18n.ts'
@@ -72,7 +80,7 @@ const getAllCards = async (state: State, notify: Notify) => {
 }
 
 const getAllCourses = async (state: State, notify: Notify) => {
-  return fetchJson<Card[]>(notify, `${state.getApiUrl()}/api/courses`, {
+  return fetchJson<Course[]>(notify, `${state.getApiUrl()}/api/courses`, {
     headers: {
       'Authorization': state.getAuthorizationHeader(),
     },
