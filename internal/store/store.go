@@ -10,16 +10,18 @@ import (
 )
 
 type Storage interface {
-	querier(ctx context.Context) querier
-
 	Begin(ctx context.Context) (context.Context, error)
 	Commit(ctx context.Context)
 	Rollback(ctx context.Context)
 
 	CreateTelegramUpdate(ctx context.Context, update *TelegramUpdate) error
 
+	GetModulesByCourseID(ctx context.Context, id int) ([]Module, error)
 	GetModuleByName(ctx context.Context, name string) (*Module, error)
 	CreateModule(ctx context.Context, module *Module) error
+
+	GetCourses(ctx context.Context) ([]Course, error)
+	CreateCourse(ctx context.Context, course *Course) error
 
 	GetCards(ctx context.Context, moduleIDs []int) ([]Card, error)
 	GetCardByUIDAndHash(ctx context.Context, uid int, hash string) (*Card, error)

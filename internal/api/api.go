@@ -127,6 +127,8 @@ func (s *Service) getRoutes() *http.ServeMux {
 	mux.HandleFunc("GET /api/leaderboard", s.auth(s.getLeaderboard))
 	mux.HandleFunc("GET /api/events", s.sseAuth(s.getEvents))
 	mux.HandleFunc("GET /api/cards", s.auth(s.getCards))
+	mux.HandleFunc("GET /api/courses", s.auth(s.getCourses))
+	mux.HandleFunc("GET /api/modules", s.auth(s.getModules))
 
 	return mux
 }

@@ -13,6 +13,11 @@ type Module struct {
 	UpdatedAt time.Time
 }
 
+func (s *Store) GetModulesByCourseID(ctx context.Context, id int) ([]Module, error) {
+	// for instance: select id, uuid, name, created_at, updated_at from modules where id in (select distinct module_id from cards where course_id = ?)
+	return nil, nil
+}
+
 func (s *Store) GetModuleByName(ctx context.Context, name string) (*Module, error) {
 	module := &Module{}
 	err := s.querier(ctx).QueryRow(

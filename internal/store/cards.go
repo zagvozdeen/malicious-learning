@@ -16,6 +16,7 @@ type Card struct {
 	Question  string    `json:"question"`
 	Answer    string    `json:"answer"`
 	ModuleID  int       `json:"module_id"`
+	CourseID  int       `json:"course_id"`
 	IsActive  bool      `json:"is_active"`
 	Hash      string    `json:"hash"`
 	CreatedAt time.Time `json:"created_at"`
@@ -121,8 +122,8 @@ func (s *Store) GetActiveCardByUID(ctx context.Context, uid int) (*Card, error) 
 
 func (s *Store) CreateCard(ctx context.Context, card *Card) error {
 	return s.querier(ctx).QueryRow(ctx, `
-		INSERT INTO cards (uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO cards (uid, uuid, question, answer, module_id, course_id, is_active, hash, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 	`,
 		card.UID,
@@ -130,6 +131,7 @@ func (s *Store) CreateCard(ctx context.Context, card *Card) error {
 		card.Question,
 		card.Answer,
 		card.ModuleID,
+		card.CourseID,
 		card.IsActive,
 		card.Hash,
 		card.CreatedAt,
@@ -138,11 +140,11 @@ func (s *Store) CreateCard(ctx context.Context, card *Card) error {
 }
 
 func (s *Store) DeactivateCardByID(ctx context.Context, id int, updatedAt time.Time) error {
-	tag, err := s.querier(ctx).Exec(ctx, `
-		UPDATE cards
-		SET is_active = false, updated_at = $1
-		WHERE id = $2
-	`, updatedAt, id)
+	tag, err := s.querier(ctx).Exec(
+		ctx,
+		"UPDATE cards SET is_active = false, updated_at = $1 WHERE id = $2",
+		updatedAt, id,
+	)
 	if err != nil {
 		return err
 	}
