@@ -123,6 +123,11 @@ func Run(ctx context.Context, storage store.Storage) error {
 			if err != nil {
 				return fmt.Errorf("failed to parse front-matter: %w", err)
 			}
+			cd.Name = strings.TrimSpace(cd.Name)
+			cd.Module = strings.TrimSpace(cd.Module)
+			if cd.Module == "" || cd.Name == "" {
+				return fmt.Errorf("failed to parse card description %q: module or name is empty", cardEntry.Name())
+			}
 			extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 			p := parser.NewWithExtensions(extensions)
 			doc := p.Parse(b)

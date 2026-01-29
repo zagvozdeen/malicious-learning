@@ -19,18 +19,14 @@ func (a *Analytics) open() {
 }
 
 func (a *Analytics) close() {
-	file, err := os.OpenFile("metrics.json", os.O_CREATE|os.O_WRONLY, 0644)
+	b, err := json.Marshal(a)
+	if err != nil {
+		a.log.Warn("Failed to marshal metrics to file", slog.Any("err", err))
+		return
+	}
+	err = os.WriteFile("metrics.json", b, 0644)
 	if err != nil {
 		a.log.Warn("Failed to open metrics file", slog.Any("err", err))
 		return
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			a.log.Warn("Failed to close metrics file", slog.Any("err", closeErr))
-		}
-	}()
-	err = json.MarshalWrite(file, a)
-	if err != nil {
-		a.log.Warn("Failed to marshal metrics to file", slog.Any("err", err))
 	}
 }

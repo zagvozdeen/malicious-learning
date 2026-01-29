@@ -15,13 +15,21 @@
         :front="currentQuestion.question"
         :back="currentQuestion.answer"
       >
-        <span>{{ currentQuestion.module_name }} [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>&nbsp;<span
-          v-show="currentQuestion.status == 'forgot'"
-          class="text-red-500"
-        >[вы забыли]</span><span
-          v-show="currentQuestion.status == 'remember'"
-          class="text-green-500"
-        >[вы вспомнили]</span>
+        <template #header>
+          <span>{{ currentQuestion.module_name }} [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>&nbsp;<span
+            v-show="currentQuestion.status == 'forgot'"
+            class="text-red-500"
+          >[вы забыли]</span><span
+            v-show="currentQuestion.status == 'remember'"
+            class="text-green-500"
+          >[вы вспомнили]</span>
+        </template>
+        <template #default>
+          <article
+            v-html="currentQuestion.answer"
+            class="m-6 text-justify flex flex-col gap-2"
+          />
+        </template>
       </ExamCard>
 
       <div
@@ -301,3 +309,23 @@ onUnmounted(() => {
   state.getES()?.removeEventListener('get-recommendations-end', handleRecommendationsEnd)
 })
 </script>
+
+<style>
+article {
+  pre {
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 0.5rem 0;
+    border-radius: 0.5rem;
+  }
+
+  code {
+    padding: 0.2rem 0.4rem;
+    margin: 0;
+    font-size: 85%;
+    white-space: break-spaces;
+    background-color: #656c7633;
+    border-radius: 6px;
+  }
+}
+</style>
