@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,19 +25,20 @@ func (s *Service) startSendingMetrics() error {
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	var old analytics.Metrics = nil
+	var oldHash string
 	for {
 		select {
 		case <-s.ctx.Done():
 			return nil
 		case <-s.botStarted:
-			old = s.sendMetrics(s.metrics.Clone())
+			old, oldHash = s.sendMetrics(s.metrics.Clone(), oldHash)
 		case <-ticker.C:
-			old = s.sendMetrics(old)
+			old, oldHash = s.sendMetrics(old, oldHash)
 		}
 	}
 }
 
-func (s *Service) sendMetrics(old analytics.Metrics) analytics.Metrics {
+func (s *Service) sendMetrics(old analytics.Metrics, oldHash string) (analytics.Metrics, string) {
 	var lines = []string{
 		"*Вот сводка за последний час\\:*", "",
 		fmt.Sprintf("– *Создано пользователей\\:* %s", s.compareTwoValues(old.GetAppUsersCreatedCount, s.metrics.GetAppUsersCreatedCount)),
@@ -46,15 +49,23 @@ func (s *Service) sendMetrics(old analytics.Metrics) analytics.Metrics {
 		"", "**Статистика по страницам\\:**", "",
 	}
 	lines = append(lines, s.getAppResponsesTotalDiff(old, s.metrics)...)
+	text := strings.Join(lines, "\n")
+	hasher := sha256.New()
+	hasher.Write([]byte(text))
+	hash := hex.EncodeToString(hasher.Sum(nil))
+	if hash == oldHash {
+		s.log.Info("Skip sending stats due to there is no changes")
+		return s.metrics.Clone(), hash
+	}
 	_, err := s.bot.SendMessage(s.ctx, &bot.SendMessageParams{
 		ChatID:    s.cfg.TelegramBotGroup,
-		Text:      strings.Join(lines, "\n"),
+		Text:      text,
 		ParseMode: models.ParseModeMarkdown,
 	})
 	if err != nil {
 		s.log.Error("Failed to send message to group", slog.Any("err", err))
 	}
-	return s.metrics.Clone()
+	return s.metrics.Clone(), hash
 }
 
 func (s *Service) compareTwoValues(old func() int64, new func() int64) string {
@@ -67,21 +78,11 @@ func (s *Service) compareTwoValues(old func() int64, new func() int64) string {
 
 func (s *Service) getAppResponsesTotalDiff(old analytics.Metrics, new analytics.Metrics) (r []string) {
 	o := old.GetAppResponsesTotal()
-	for path, codes := range new.GetAppResponsesTotal() {
-		for code, counter := range codes {
-			oldCodes, ok := o[path]
-			if !ok {
-				oldCodes = codes
-			}
-			oldCounter, ok := oldCodes[code]
-			if !ok {
-				oldCounter = counter
-			}
-			if oldCounter == counter {
-				r = append(r, fmt.Sprintf("– *%s \\[%d\\]:* %d", bot.EscapeMarkdown(path), code, counter))
-			} else {
-				r = append(r, fmt.Sprintf("– *%s \\[%d\\]:* %d \\(\\+%d\\)", bot.EscapeMarkdown(path), code, counter, counter-oldCounter))
-			}
+	for path, count := range new.GetAppResponsesTotal() {
+		if o[path] == count {
+			r = append(r, fmt.Sprintf("– *%s:* %d", bot.EscapeMarkdown(path), count))
+		} else {
+			r = append(r, fmt.Sprintf("– *%s:* %d \\(\\+%d\\)", bot.EscapeMarkdown(path), count, count-o[path]))
 		}
 	}
 	return r

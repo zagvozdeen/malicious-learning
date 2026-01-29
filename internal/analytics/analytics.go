@@ -1,7 +1,9 @@
 package analytics
 
 import (
+	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"sync/atomic"
 )
@@ -21,7 +23,7 @@ type Metrics interface {
 	GetAppGeneratedRecommendationsCount() int64
 	GetAppUpdatedUserAnswersCount() int64
 	GetAppCreatedTestSessionsCount() int64
-	GetAppResponsesTotal() map[string]map[int]int64
+	GetAppResponsesTotal() map[string]int64
 }
 
 type Analytics struct {
@@ -33,28 +35,33 @@ type Analytics struct {
 	AppUpdatedUserAnswersCount       int64 `json:"app_updated_user_answers_count"`
 	AppCreatedTestSessionsCount      int64 `json:"app_created_test_sessions_count"`
 
-	AppResponsesTotal   map[string]map[int]int64 `json:"app_responses_total"`
+	AppResponsesTotal   map[string]int64 `json:"app_responses_total"`
 	appResponsesTotalMu sync.Mutex
 }
 
-func (a *Analytics) AppResponsesTotalInc(path string, code int) {
-	a.appResponsesTotalMu.Lock()
-
-	codes, ok := a.AppResponsesTotal[path]
-	if !ok {
-		a.AppResponsesTotal[path] = map[int]int64{code: 1}
-		a.appResponsesTotalMu.Unlock()
-		return
+func (a *Analytics) Clone() Metrics {
+	return &Analytics{
+		log:                              a.log,
+		AppUsersCreatedCount:             a.GetAppUsersCreatedCount(),
+		AppNotMessageUpdateCount:         a.GetAppNotMessageUpdateCount(),
+		AppGeneratedRecommendationsCount: a.GetAppGeneratedRecommendationsCount(),
+		AppUpdatedUserAnswersCount:       a.GetAppUpdatedUserAnswersCount(),
+		AppCreatedTestSessionsCount:      a.GetAppCreatedTestSessionsCount(),
+		AppResponsesTotal:                a.GetAppResponsesTotal(),
 	}
-	codes[code] = codes[code] + 1
-	a.AppResponsesTotal[path] = codes
+}
+
+func (a *Analytics) AppResponsesTotalInc(path string, code int) {
+	key := fmt.Sprintf("%s [%d]", path, code)
+	a.appResponsesTotalMu.Lock()
+	a.AppResponsesTotal[key] = a.AppResponsesTotal[key] + 1
 	a.appResponsesTotalMu.Unlock()
 }
 
-func (a *Analytics) GetAppResponsesTotal() map[string]map[int]int64 {
+func (a *Analytics) GetAppResponsesTotal() map[string]int64 {
 	a.appResponsesTotalMu.Lock()
 	defer a.appResponsesTotalMu.Unlock()
-	return a.AppResponsesTotal
+	return maps.Clone(a.AppResponsesTotal)
 }
 
 func (a *Analytics) AppCreatedTestSessionsCountInc() {
@@ -100,7 +107,7 @@ func (a *Analytics) GetAppUsersCreatedCount() int64 {
 var _ Metrics = (*Analytics)(nil)
 
 func New(log *slog.Logger) (*Analytics, func()) {
-	a := &Analytics{log: log, AppResponsesTotal: map[string]map[int]int64{}}
+	a := &Analytics{log: log, AppResponsesTotal: map[string]int64{}}
 	a.open()
 	return a, a.close
 }
