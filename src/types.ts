@@ -2,6 +2,7 @@ export interface TestSession {
     id: number
     uuid: string
     user_id: number
+    course_id: number
     module_ids: number[]
     is_shuffled: boolean
     is_active: boolean
@@ -59,6 +60,7 @@ export interface TestSessionSummary {
     count_remember: number
     count_forget: number
     created_at: string
+    course_name: string
 }
 
 export type Levels = 'error'| 'warn' | 'info'

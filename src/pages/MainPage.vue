@@ -67,7 +67,7 @@
           </span>
           <div class="flex flex-col">
             <div class="flex items-center gap-1">
-              <span class="text-left text-sm font-medium">Тест от {{ format(ts.created_at, "dd.MM.yyyy HH:mm:ss") }}</span>
+              <span class="text-left text-sm font-medium">Тест по курсу «{{ ts.course_name }}» от {{ format(ts.created_at, "dd.MM.yyyy HH:mm") }}</span>
               <i
                 v-if="!ts.is_active"
                 class="bi bi-check-all text-lg flex"

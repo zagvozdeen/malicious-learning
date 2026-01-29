@@ -11,6 +11,7 @@ type TestSession struct {
 	ID              int         `json:"id"`
 	UUID            string      `json:"uuid"`
 	UserID          int         `json:"user_id"`
+	CourseID        int         `json:"course_id"`
 	ModuleIDs       []int       `json:"module_ids"`
 	IsShuffled      bool        `json:"is_shuffled"`
 	IsActive        bool        `json:"is_active"`
@@ -23,12 +24,13 @@ func (s *Store) GetTestSessionByUUID(ctx context.Context, uuid string) (*TestSes
 	session := &TestSession{}
 	err := s.querier(ctx).QueryRow(
 		ctx,
-		"SELECT id, uuid, user_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at FROM test_sessions WHERE uuid = $1",
+		"SELECT id, uuid, user_id, course_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at FROM test_sessions WHERE uuid = $1",
 		uuid,
 	).Scan(
 		&session.ID,
 		&session.UUID,
 		&session.UserID,
+		&session.CourseID,
 		&session.ModuleIDs,
 		&session.IsShuffled,
 		&session.IsActive,
@@ -47,12 +49,13 @@ func (s *Store) GetTestSessionByID(ctx context.Context, id int) (*TestSession, i
 	session, n := &TestSession{}, 0
 	err := s.querier(ctx).QueryRow(
 		ctx,
-		"SELECT id, uuid, user_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at, (SELECT COUNT(*) FROM user_answers WHERE test_session_id = $1 AND status = $2) FROM test_sessions WHERE id = $1",
+		"SELECT id, uuid, user_id, course_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at, (SELECT COUNT(*) FROM user_answers WHERE test_session_id = $1 AND status = $2) FROM test_sessions WHERE id = $1",
 		id, UserAnswerStatusNull,
 	).Scan(
 		&session.ID,
 		&session.UUID,
 		&session.UserID,
+		&session.CourseID,
 		&session.ModuleIDs,
 		&session.IsShuffled,
 		&session.IsActive,
@@ -67,18 +70,19 @@ func (s *Store) GetTestSessionByID(ctx context.Context, id int) (*TestSession, i
 	return session, n, nil
 }
 
-func (s *Store) CreateTestSession(ctx context.Context, session *TestSession, answers []UserAnswer) error {
-	tx, err := s.pool.Begin(ctx)
+func (s *Store) CreateTestSession(ctx context.Context, session *TestSession, answers []UserAnswer) (err error) {
+	ctx, err = s.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer s.Rollback(ctx)
 
-	err = tx.QueryRow(
+	err = s.querier(ctx).QueryRow(
 		ctx,
-		"INSERT INTO test_sessions (uuid, user_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+		"INSERT INTO test_sessions (uuid, user_id, course_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
 		session.UUID,
 		session.UserID,
+		session.CourseID,
 		session.ModuleIDs,
 		session.IsShuffled,
 		session.IsActive,
@@ -91,7 +95,7 @@ func (s *Store) CreateTestSession(ctx context.Context, session *TestSession, ans
 	}
 
 	for _, answer := range answers {
-		_, err = tx.Exec(
+		_, err = s.querier(ctx).Exec(
 			ctx,
 			"INSERT INTO user_answers (uuid, card_id, test_session_id, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)",
 			answer.UUID,
@@ -106,7 +110,8 @@ func (s *Store) CreateTestSession(ctx context.Context, session *TestSession, ans
 		}
 	}
 
-	return tx.Commit(ctx)
+	s.Commit(ctx)
+	return nil
 }
 
 func (s *Store) UpdateTestSession(ctx context.Context, session *TestSession) error {

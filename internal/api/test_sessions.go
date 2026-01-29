@@ -32,6 +32,14 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 		return rErr(http.StatusBadRequest, fmt.Errorf("missing course_slug"))
 	}
 
+	course, err := s.store.GetCourseBySlug(r.Context(), payload.CourseSlug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return rErr(http.StatusNotFound, fmt.Errorf("course not found: %w", err))
+		}
+		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load course: %w", err))
+	}
+
 	moduleIDs := slices.Clone(payload.ModuleIDs)
 	slices.Sort(moduleIDs)
 
@@ -55,6 +63,7 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 	session := &store.TestSession{
 		UUID:       uid.String(),
 		UserID:     user.ID,
+		CourseID:   course.ID,
 		ModuleIDs:  moduleIDs,
 		IsShuffled: payload.Shuffle,
 		IsActive:   true,

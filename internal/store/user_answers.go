@@ -59,6 +59,7 @@ type TestSessionSummary struct {
 	CountRemember      int       `json:"count_remember"`
 	CountForget        int       `json:"count_forget"`
 	CreatedAt          time.Time `json:"created_at"`
+	CourseName         string    `json:"course_name"`
 }
 
 func (s *Store) GetUserAnswersByTestSessionID(ctx context.Context, id int) ([]FullUserAnswer, error) {
@@ -114,11 +115,13 @@ func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionS
 			count(ua.id) FILTER ( WHERE ua.status = 'null' ) count_null,
 			count(ua.id) FILTER ( WHERE ua.status = 'remember' ) count_remember,
 			count(ua.id) FILTER ( WHERE ua.status = 'forgot' ) count_forget,
-			ts.created_at
+			ts.created_at,
+			co.name
 		FROM test_sessions ts
+		JOIN courses co ON co.id = ts.course_id
 		LEFT JOIN user_answers ua ON ua.test_session_id = ts.id
 		WHERE ts.user_id = $1
-		GROUP BY ts.id, ts.uuid, ts.is_active, ts.is_shuffled, ts.module_ids, ts.recommendations IS NOT NULL, ts.created_at
+		GROUP BY ts.id, ts.uuid, ts.is_active, ts.is_shuffled, ts.module_ids, ts.recommendations IS NOT NULL, ts.created_at, co.name
 		ORDER BY ts.created_at DESC
 	`, userID)
 	if err != nil {
@@ -139,6 +142,7 @@ func (s *Store) GetTestSessions(ctx context.Context, userID int) ([]TestSessionS
 			&session.CountRemember,
 			&session.CountForget,
 			&session.CreatedAt,
+			&session.CourseName,
 		)
 		if err != nil {
 			return nil, err
