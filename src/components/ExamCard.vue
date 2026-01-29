@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg"
-  >
+  <div class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg">
     <div class="text-center uppercase text-sm font-bold py-1 select-none">
       <slot name="header" />
     </div>
@@ -44,9 +42,8 @@ import { ref, watch } from 'vue'
 
 const isFront = ref(true)
 
-const { front, back } = defineProps<{
+const { front } = defineProps<{
   front: string,
-  back: string,
 }>()
 
 watch(() => front, () => {

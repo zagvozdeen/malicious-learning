@@ -27,7 +27,7 @@
         <template #default>
           <article
             v-html="currentQuestion.answer"
-            class="m-6 text-justify flex flex-col gap-2"
+            class="m-6 text-justify flex flex-col gap-2 overflow-x-hidden"
           />
         </template>
       </ExamCard>
@@ -319,13 +319,27 @@ article {
     border-radius: 0.5rem;
   }
 
-  code {
+  p > code {
     padding: 0.2rem 0.4rem;
     margin: 0;
     font-size: 85%;
     white-space: break-spaces;
     background-color: #656c7633;
     border-radius: 6px;
+  }
+
+  .table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+
+    th, td {
+      border: 1px solid oklch(44.6% 0.03 256.802);
+      padding: 0.25rem;
+    }
   }
 }
 </style>

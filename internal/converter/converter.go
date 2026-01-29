@@ -134,6 +134,14 @@ func Run(ctx context.Context, storage store.Storage) error {
 			renderer := html.NewRenderer(html.RendererOptions{
 				Flags: html.CommonFlags | html.HrefTargetBlank,
 				RenderNodeHook: func(w io.Writer, node ast.Node, entering bool) (ast.WalkStatus, bool) {
+					if _, ok := node.(*ast.Table); ok {
+						if entering {
+							_, _ = io.WriteString(w, `<div class="table-wrapper"><table>`)
+						} else {
+							_, _ = io.WriteString(w, `</table></div>`)
+						}
+						return ast.GoToNext, true
+					}
 					if code, ok := node.(*ast.CodeBlock); ok {
 						err = hlighter.highlight(w, string(code.Literal), string(code.Info))
 						if err != nil {
