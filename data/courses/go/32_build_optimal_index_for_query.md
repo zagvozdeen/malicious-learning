@@ -3,6 +3,7 @@ name: Построить оптимальный индекс для запрос
 module: Базы данных
 tags:
   - грейды
+  - озон
 ---
 ```sql
 SELECT * FROM employee

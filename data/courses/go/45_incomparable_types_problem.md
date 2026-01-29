@@ -3,6 +3,7 @@ name: Задача на incomparable types
 module: Теория
 tags:
   - грейды
+  - озон
 ---
 ```go
 a := map[B]int{}
