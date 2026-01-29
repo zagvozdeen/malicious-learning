@@ -14,7 +14,7 @@ dist-ssr
 *.prod
 .env
 .env.production
-data/.obsidian
+data/courses/.obsidian
 metrics.json
 
 # Editor directories and files
