@@ -15,6 +15,12 @@ import (
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
 
+type createTestSessionRequest struct {
+	CourseSlug string `json:"course_slug"`
+	ModuleIDs  []int  `json:"module_ids"`
+	Shuffle    bool   `json:"shuffle"`
+}
+
 func (s *Service) createTestSession(r *http.Request, user *store.User) Response {
 	query := r.URL.Query()
 

@@ -6,21 +6,22 @@ import (
 )
 
 type Module struct {
-	ID        int
-	UUID      string
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        int       `json:"id"`
+	UUID      string    `json:"uuid"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (s *Store) GetModulesByCourseID(ctx context.Context, id int) ([]Module, error) {
+func (s *Store) GetModulesByCourseSlug(ctx context.Context, slug string) ([]Module, error) {
 	rows, err := s.querier(ctx).Query(ctx, `
 		SELECT DISTINCT m.id, m.uuid, m.name, m.created_at, m.updated_at
 		FROM modules m
 		JOIN cards c ON c.module_id = m.id
-		WHERE c.course_id = $1
+		JOIN courses co ON co.id = c.course_id
+		WHERE co.slug = $1
 		ORDER BY m.id
-	`, id)
+	`, slug)
 	if err != nil {
 		return nil, err
 	}

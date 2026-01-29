@@ -10,6 +10,7 @@ import StatsPage from '@/pages/StatsPage.vue'
 import CardsPage from '@/pages/CardsPage.vue'
 import NotificationProvider from '@/components/NotificationProvider.vue'
 import CreateTestSessionPage from '@/pages/CreateTestSessionPage.vue'
+import { darkTheme, NConfigProvider } from 'naive-ui'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,5 +43,7 @@ router.beforeEach((to, _from, next) => {
 createApp({
   setup: () => () => h('div', {
     class: `mx-auto px-4 ${state.getRootClasses.value}`,
-  }, h(NotificationProvider, () => h(RouterView))),
+  }, h(NConfigProvider, {
+    theme: darkTheme,
+  }, () => h(NotificationProvider, () => h(RouterView)))),
 }).use(router).mount('#app')

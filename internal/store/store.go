@@ -15,7 +15,7 @@ type Storage interface {
 
 	CreateTelegramUpdate(ctx context.Context, update *TelegramUpdate) error
 
-	GetModulesByCourseID(ctx context.Context, id int) ([]Module, error)
+	GetModulesByCourseSlug(ctx context.Context, slug string) ([]Module, error)
 	GetModuleByName(ctx context.Context, name string) (*Module, error)
 	CreateModule(ctx context.Context, module *Module) error
 

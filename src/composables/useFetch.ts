@@ -1,7 +1,7 @@
 import type {
   Card,
   Course,
-  FullUserAnswer,
+  FullUserAnswer, Module,
   TestSession,
   TestSessionSummary,
   UserAnswer,
@@ -32,13 +32,16 @@ const getToken = async (state: State, notify: Notify, username: string, password
   })
 }
 
-const createTestSession = async (state: State, notify: Notify, shuffle: boolean, modules: number[]) => {
-  const params = new URLSearchParams({
-    shuffle: shuffle.toString(),
-    modules: modules.join(','),
-  })
-  return fetchJson<TestSession>(notify, `${state.getApiUrl()}/api/test-sessions?${params.toString()}`, {
+export interface createTestSessionData {
+  course_slug: string
+  module_ids: number[]
+  shuffle: boolean
+}
+
+const createTestSession = async (state: State, notify: Notify, data: createTestSessionData) => {
+  return fetchJson<TestSession>(notify, `${state.getApiUrl()}/api/test-sessions`, {
     method: 'POST',
+    body: JSON.stringify(data),
     headers: {
       'Authorization': state.getAuthorizationHeader(),
     },
@@ -87,17 +90,26 @@ const getAllCourses = async (state: State, notify: Notify) => {
   })
 }
 
+const getModulesByCourseSlug = async (state: State, notify: Notify, slug: string) => {
+  return fetchJson<Module[]>(notify, `${state.getApiUrl()}/api/modules?course_slug=${slug}`, {
+    headers: {
+      'Authorization': state.getAuthorizationHeader(),
+    },
+  })
+}
+
 export const useFetch = () => {
   const state = useState()
   const notify = useNotifications()
 
   return {
     getToken: (username: string, password: string) => getToken(state, notify, username, password),
-    createTestSession: (shuffle: boolean, modules: number[]) => createTestSession(state, notify, shuffle, modules),
+    createTestSession: (data: createTestSessionData) => createTestSession(state, notify, data),
     getTestSession: (uuid: string) => getTestSession(state, notify, uuid),
     getTestSessions: () => getTestSessions(state, notify),
     updateUserAnswer: (uuid: string, status: UserAnswerStatus) => updateUserAnswer(state, notify, uuid, status),
     getAllCards: () => getAllCards(state, notify),
     getAllCourses: () => getAllCourses(state, notify),
+    getModulesByCourseSlug: (slug: string) => getModulesByCourseSlug(state, notify, slug),
   }
 }

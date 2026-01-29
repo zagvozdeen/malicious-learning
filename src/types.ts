@@ -93,3 +93,11 @@ export interface Course {
     updated_at: string
     created_at: string
 }
+
+export interface Module {
+    id: number
+    uuid: string
+    name: string
+    updated_at: string
+    created_at: string
+}
