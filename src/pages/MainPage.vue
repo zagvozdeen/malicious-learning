@@ -2,64 +2,34 @@
   <div class="min-h-dvh w-full flex flex-col gap-4 items-center justify-center py-6">
     <ul class="flex flex-col gap-px w-full rounded-2xl border border-gray-500/30 overflow-hidden">
       <li class="w-full">
-        <button
+        <router-link
           class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
           type="button"
-          @click="onAllQuestions"
+          :to="{ name: 'cards' }"
         >
-          <span class="size-6 flex items-center justify-center rounded-lg bg-blue-400">
-            <i class="bi bi-check-square-fill text-sm flex" />
+          <span class="size-6 flex items-center justify-center rounded-lg bg-gray-400">
+            <i class="bi bi-list-check text-sm flex" />
           </span>
-          <span class="text-left text-sm font-medium">Все вопросы подряд</span>
+          <span class="text-left text-sm font-medium">Все карточки</span>
           <span class="text-gray-400">
             <i class="bi bi-chevron-right text-sm flex" />
           </span>
-        </button>
+        </router-link>
       </li>
       <li class="w-full">
-        <button
+        <router-link
           class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
           type="button"
-          @click="onAllShuffleQuestions"
-        >
-          <span class="size-6 flex items-center justify-center rounded-lg bg-red-400">
-            <i class="bi bi-shuffle text-sm flex" />
-          </span>
-          <span class="text-left text-sm font-medium">Все вопросы вперемешку</span>
-          <span class="text-gray-400">
-            <i class="bi bi-chevron-right text-sm flex" />
-          </span>
-        </button>
-      </li>
-      <li class="w-full">
-        <button
-          class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
-          type="button"
-          @click="onOnlyTheoryQuestions"
+          :to="{ name: 'stats' }"
         >
           <span class="size-6 flex items-center justify-center rounded-lg bg-orange-400">
-            <i class="bi bi-question-square-fill text-sm flex" />
+            <i class="bi bi-graph-up-arrow text-sm flex" />
           </span>
-          <span class="text-left text-sm font-medium">Только теория</span>
+          <span class="text-left text-sm font-medium">Статистика</span>
           <span class="text-gray-400">
             <i class="bi bi-chevron-right text-sm flex" />
           </span>
-        </button>
-      </li>
-      <li class="w-full">
-        <button
-          class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
-          type="button"
-          @click="onOnlyPracticeQuestions"
-        >
-          <span class="size-6 flex items-center justify-center rounded-lg bg-amber-400">
-            <i class="bi bi-keyboard-fill text-sm flex" />
-          </span>
-          <span class="text-left text-sm font-medium">Только практика</span>
-          <span class="text-gray-400">
-            <i class="bi bi-chevron-right text-sm flex" />
-          </span>
-        </button>
+        </router-link>
       </li>
       <li class="w-full">
         <router-link
@@ -90,7 +60,7 @@
         <router-link
           class="grid grid-cols-[min-content_1fr_min-content] items-center w-full gap-2 p-2 cursor-pointer bg-gray-500/20 hover:bg-gray-500/30"
           type="button"
-          :to="{ name: 'cards', params: { uuid: ts.uuid } }"
+          :to="{ name: 'cards.view', params: { uuid: ts.uuid } }"
         >
           <span class="size-6 flex items-center justify-center rounded-lg bg-gray-500">
             <span class="text-gray-200 font-bold">{{ index + 1 }}</span>
@@ -103,7 +73,7 @@
                 class="bi bi-check-all text-lg flex"
               />
             </div>
-            <span class="text-gray-400 text-xs">{{ ts.is_shuffled ? 'Вопросы вперемешку' : 'Вопросы по порядку' }}, {{ ts.module_ids.length == 1 ? (ts.module_ids[0] == 1 ? 'только теория' : 'только практика') : 'теория и практика' }}</span>
+            <span class="text-gray-400 text-xs">{{ ts.is_shuffled ? 'Вопросы вперемешку' : 'Вопросы по порядку' }}, {{ pluralize(ts.module_ids.length, ['выбран', 'выбрано', 'выбрано']) }} {{ ts.module_ids.length }} {{ pluralize(ts.module_ids.length, ['модуль', 'модуля', 'модулей']) }}</span>
           </div>
           <span class="flex items-center gap-1 text-gray-400">
             <AppPercent :ts="ts" />
@@ -116,50 +86,15 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { useFetch } from '@/composables/useFetch.ts'
 import { onMounted, ref } from 'vue'
 import type { TestSessionSummary } from '@/types.ts'
 import { format } from 'date-fns'
-import { useNotifications } from '@/composables/useNotifications.ts'
 import AppPercent from '@/components/AppPercent.vue'
+import { pluralize } from '@/composables/useI18n.ts'
 
-const router = useRouter()
 const fetcher = useFetch()
-const notify = useNotifications()
 const testSessions = ref<TestSessionSummary[]>([])
-
-const createTestSession = (shuffle: boolean, modules: number[]) => {
-  fetcher
-    .createTestSession(shuffle, modules)
-    .then(data => {
-      if (data.ok) {
-        router.push({
-          name: 'cards',
-          params: {
-            uuid: data.data.uuid,
-          },
-        })
-        notify.info('Тест начат, вы можете начать прохождение!')
-      }
-    })
-}
-
-const onAllQuestions = () => {
-  createTestSession(false, [1, 2])
-}
-
-const onAllShuffleQuestions = () => {
-  createTestSession(true, [1, 2])
-}
-
-const onOnlyTheoryQuestions = () => {
-  createTestSession(false, [1])
-}
-
-const onOnlyPracticeQuestions = () => {
-  createTestSession(false, [2])
-}
 
 onMounted(() => {
   fetcher

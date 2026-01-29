@@ -1,12 +1,12 @@
 package api
 
 import (
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,24 +22,25 @@ type createTestSessionRequest struct {
 }
 
 func (s *Service) createTestSession(r *http.Request, user *store.User) Response {
-	query := r.URL.Query()
-
-	shuffle, err := parseBool(query.Get("shuffle"))
-	if err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid shuffle param: %w", err))
+	var payload createTestSessionRequest
+	if err := json.UnmarshalRead(r.Body, &payload); err != nil {
+		return rErr(http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
 	}
 
-	moduleIDs, err := parseModuleIDs(query.Get("modules"))
-	if err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid modules param: %w", err))
+	payload.CourseSlug = strings.TrimSpace(payload.CourseSlug)
+	if payload.CourseSlug == "" {
+		return rErr(http.StatusBadRequest, fmt.Errorf("missing course_slug"))
 	}
 
-	cards, err := s.store.GetCards(r.Context(), moduleIDs)
+	moduleIDs := slices.Clone(payload.ModuleIDs)
+	slices.Sort(moduleIDs)
+
+	cards, err := s.store.GetCards(r.Context(), payload.CourseSlug, moduleIDs)
 	if err != nil {
 		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load cards: %w", err))
 	}
 
-	if shuffle && len(cards) > 1 {
+	if payload.Shuffle && len(cards) > 1 {
 		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 		rng.Shuffle(len(cards), func(i, j int) {
 			cards[i], cards[j] = cards[j], cards[i]
@@ -55,7 +56,7 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 		UUID:       uid.String(),
 		UserID:     user.ID,
 		ModuleIDs:  moduleIDs,
-		IsShuffled: shuffle,
+		IsShuffled: payload.Shuffle,
 		IsActive:   true,
 		CreatedAt:  now,
 		UpdatedAt:  now,
@@ -130,33 +131,4 @@ func (s *Service) getTestSessions(r *http.Request, user *store.User) Response {
 	}
 
 	return rData(http.StatusOK, getTestSessionsResponse{Data: sessions})
-}
-
-func parseBool(value string) (bool, error) {
-	if value == "" {
-		return false, nil
-	}
-	return strconv.ParseBool(value)
-}
-
-func parseModuleIDs(value string) ([]int, error) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil, nil
-	}
-
-	var ids []int
-	for _, part := range strings.Split(value, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		id, err := strconv.Atoi(part)
-		if err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	slices.Sort(ids)
-	return ids, nil
 }

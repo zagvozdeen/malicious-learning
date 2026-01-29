@@ -23,7 +23,7 @@ type Storage interface {
 	GetCourseBySlug(ctx context.Context, slug string) (*Course, error)
 	CreateCourse(ctx context.Context, course *Course) error
 
-	GetCards(ctx context.Context, moduleIDs []int) ([]Card, error)
+	GetCards(ctx context.Context, courseSlug string, moduleIDs []int) ([]Card, error)
 	IsExistsCardByUIDAndHash(ctx context.Context, uid int, hash string) (bool, error)
 	CreateCard(ctx context.Context, card *Card) error
 	DeactivateCard(ctx context.Context, card *Card) error

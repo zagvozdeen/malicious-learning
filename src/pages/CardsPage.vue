@@ -47,7 +47,7 @@
 
 <script lang="ts" setup>
 import { useFetch } from '@/composables/useFetch.ts'
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import type { Card } from '@/types.ts'
 import { useState } from '@/composables/useState.ts'
 
@@ -65,5 +65,9 @@ onMounted(() => {
         cards.value = data.data
       }
     })
+})
+
+onUnmounted(() => {
+  state.setRootClasses('max-w-md')
 })
 </script>

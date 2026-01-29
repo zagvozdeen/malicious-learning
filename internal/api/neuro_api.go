@@ -76,11 +76,14 @@ func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int
 		}
 	}
 	msgs = append(msgs, "```")
-	client := openai.NewClient(
+	options := []option.RequestOption{
 		option.WithBaseURL(s.cfg.NeuroAPI),
 		option.WithAPIKey(s.cfg.NeuroToken),
-		option.WithDebugLog(slog.NewLogLogger(s.log.Handler(), slog.LevelDebug)),
-	)
+	}
+	if s.cfg.NeuroDebug {
+		options = append(options, option.WithDebugLog(slog.NewLogLogger(s.log.Handler(), slog.LevelDebug)))
+	}
+	client := openai.NewClient(options...)
 	res, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(strings.Join(msgs, "\n")),

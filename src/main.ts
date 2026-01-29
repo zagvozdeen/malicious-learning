@@ -17,9 +17,9 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'main', component: MainPage },
     { path: '/login', name: 'login', component: LoginPage },
-    { path: '/cards/:uuid', name: 'cards', component: CardPage },
+    { path: '/cards/:uuid', name: 'cards.view', component: CardPage },
     { path: '/stats', name: 'stats', component: StatsPage },
-    { path: '/cards', name: 'pdf', component: CardsPage },
+    { path: '/cards', name: 'cards', component: CardsPage },
     { path: '/cards/create', name: 'cards.create', component: CreateTestSessionPage },
   ],
 })

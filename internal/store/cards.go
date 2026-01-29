@@ -39,7 +39,7 @@ func (c *Card) GetHash() string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func (s *Store) GetCards(ctx context.Context, moduleIDs []int) ([]Card, error) {
+func (s *Store) GetCards(ctx context.Context, courseSlug string, moduleIDs []int) ([]Card, error) {
 	if len(moduleIDs) == 0 {
 		return nil, nil
 	}
@@ -49,9 +49,19 @@ func (s *Store) GetCards(ctx context.Context, moduleIDs []int) ([]Card, error) {
 		pattern = append(pattern, fmt.Sprintf("$%d", i+1))
 		args = append(args, moduleIDs[i])
 	}
+	joinCourses := ""
+	courseFilter := ""
+	cleanSlug := strings.TrimSpace(courseSlug)
+	if cleanSlug != "" {
+		joinCourses = "JOIN courses co ON co.id = c.course_id"
+		courseFilter = fmt.Sprintf(" AND co.slug = $%d", len(args)+1)
+		args = append(args, cleanSlug)
+	}
 	sql := fmt.Sprintf(
-		"SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at FROM cards WHERE is_active = true AND module_id in (%s) ORDER BY uid",
+		"SELECT c.id, c.uid, c.uuid, c.question, c.answer, c.module_id, c.is_active, c.hash, c.created_at, c.updated_at FROM cards c %s WHERE c.is_active = true AND c.module_id in (%s)%s ORDER BY c.uid",
+		joinCourses,
 		strings.Join(pattern, ","),
+		courseFilter,
 	)
 	rows, err := s.querier(ctx).Query(ctx, sql, args...)
 	if err != nil {

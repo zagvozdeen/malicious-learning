@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS test_sessions
     id              SERIAL PRIMARY KEY,
     uuid            UUID        NOT NULL UNIQUE,
     user_id         INTEGER     NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    course_id       INTEGER     NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
     module_ids      INTEGER[]   NOT NULL,
     is_shuffled     BOOLEAN     NOT NULL,
     is_active       BOOLEAN     NOT NULL,

@@ -3,13 +3,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, useTemplateRef } from 'vue'
+import { onMounted, onUnmounted, useTemplateRef } from 'vue'
 import Chart from 'chart.js/auto'
 import { useFetch } from '@/composables/useFetch.ts'
 import { format } from 'date-fns'
+import { useState } from '@/composables/useState.ts'
+import { useRouter } from 'vue-router'
 
 const ctx = useTemplateRef('ctx')
 const fetcher = useFetch()
+const state = useState()
+const router = useRouter()
 
 onMounted(() => {
   fetcher
@@ -39,5 +43,18 @@ onMounted(() => {
         })
       }
     })
+
+  if (state.isTelegramEnv()) {
+    window.Telegram.WebApp.BackButton.show()
+    window.Telegram.WebApp.BackButton.onClick(() => {
+      router.push({ name: 'main' })
+    })
+  }
+})
+
+onUnmounted(() => {
+  if (state.isTelegramEnv()) {
+    window.Telegram.WebApp.BackButton.hide()
+  }
 })
 </script>

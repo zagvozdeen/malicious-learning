@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { type createTestSessionData, useFetch } from '@/composables/useFetch.ts'
 import { useState } from '@/composables/useState.ts'
 import { NForm, NFormItem, NSelect, NCheckboxGroup, NCheckbox, NSpace, NSwitch, NButton, type SelectOption } from 'naive-ui'
@@ -90,8 +90,13 @@ const onSubmitForm = () => {
     .createTestSession(payload)
     .then(data => {
       if (data.ok) {
-        // state.setToken(data.data.token)
-        // router.push({ name: 'main' })
+        router.push({
+          name: 'cards.view',
+          params: {
+            uuid: data.data.uuid,
+          },
+        })
+        notify.info('Тест начат, вы можете начать прохождение!')
       }
     })
 }
@@ -120,5 +125,18 @@ onMounted(() => {
         }))
       }
     })
+
+  if (state.isTelegramEnv()) {
+    window.Telegram.WebApp.BackButton.show()
+    window.Telegram.WebApp.BackButton.onClick(() => {
+      router.push({ name: 'main' })
+    })
+  }
+})
+
+onUnmounted(() => {
+  if (state.isTelegramEnv()) {
+    window.Telegram.WebApp.BackButton.hide()
+  }
 })
 </script>

@@ -26,6 +26,7 @@ type Config struct {
 	RootUserPassword   string
 	NeuroAPI           string
 	NeuroToken         string
+	NeuroDebug         bool
 }
 
 func New() *Config {
@@ -50,6 +51,7 @@ func New() *Config {
 		RootUserPassword:   os.Getenv("ROOT_USER_PASSWORD"),
 		NeuroAPI:           os.Getenv("NEURO_API"),
 		NeuroToken:         os.Getenv("NEURO_TOKEN"),
+		NeuroDebug:         false,
 	}
 }
 
