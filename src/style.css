@@ -6,6 +6,19 @@
     --font-nunito: "Nunito", sans-serif;
 }
 
+.spoiler {
+    filter: blur(4px);
+    transition: filter 0.1s ease-out;
+    cursor: pointer;
+    user-select: none;
+
+    &._show {
+        filter: blur(0px);
+        cursor: text;
+        user-select: text;
+    }
+}
+
 article ul {
     list-style-type: disc;
     display: flex;

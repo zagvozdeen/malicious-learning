@@ -1,16 +1,19 @@
-package api
+package core
 
 import (
+	"context"
 	"encoding/json/v2"
 	"errors"
 	"log/slog"
 	"net/http"
 
-	"github.com/zagvozdeen/malicious-learning/internal/analytics"
+	"github.com/zagvozdeen/malicious-learning/internal/store"
 )
 
+type HandlerFunc func(*http.Request, *store.User) Response
+
 type Response interface {
-	Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, metrics analytics.Metrics)
+	Response(w http.ResponseWriter, log *slog.Logger) int
 }
 
 type ResponseError struct {
@@ -24,6 +27,7 @@ type ResponseData struct {
 }
 
 type FlushData struct {
+	ctx  context.Context
 	data <-chan []byte
 }
 
@@ -31,43 +35,41 @@ var _ Response = (*ResponseError)(nil)
 var _ Response = (*ResponseData)(nil)
 var _ Response = (*FlushData)(nil)
 
-func rErr(code int, err error) *ResponseError {
+func Err(code int, err error) *ResponseError {
 	return &ResponseError{code: code, err: err}
 }
 
-func rData(code int, d any) *ResponseData {
+func Data(code int, d any) *ResponseData {
 	return &ResponseData{code: code, data: d}
 }
 
-func rFlash(data <-chan []byte) *FlushData {
-	return &FlushData{data: data}
+func Flush(ctx context.Context, data <-chan []byte) *FlushData {
+	return &FlushData{ctx: ctx, data: data}
 }
 
-func (r *ResponseError) Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, metrics analytics.Metrics) {
+func (r *ResponseError) Response(w http.ResponseWriter, log *slog.Logger) int {
 	log.Debug("Internal error", slog.Any("err", r.err), slog.Int("code", r.code))
 	http.Error(w, r.err.Error(), r.code)
-	metrics.AppResponsesTotalInc(req.Pattern, r.code)
+	return r.code
 }
 
-func (r *ResponseData) Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, metrics analytics.Metrics) {
+func (r *ResponseData) Response(w http.ResponseWriter, log *slog.Logger) int {
 	w.WriteHeader(r.code)
 	if r.code == http.StatusNoContent && r.data == nil {
-		metrics.AppResponsesTotalInc(req.Pattern, r.code)
-		return
+		return r.code
 	}
 	w.Header().Set("Content-Type", "application/json")
 	err := json.MarshalWrite(w, r.data)
 	if err != nil {
 		log.Error("Failed to marshal response", slog.Any("err", err), slog.Int("code", r.code))
 	}
-	metrics.AppResponsesTotalInc(req.Pattern, r.code)
+	return r.code
 }
 
-func (r *FlushData) Response(w http.ResponseWriter, req *http.Request, log *slog.Logger, metrics analytics.Metrics) {
+func (r *FlushData) Response(w http.ResponseWriter, log *slog.Logger) int {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		rErr(http.StatusHTTPVersionNotSupported, errors.New("streaming not supported")).Response(w, req, log, metrics)
-		return
+		return Err(http.StatusHTTPVersionNotSupported, errors.New("streaming not supported")).Response(w, log)
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -77,18 +79,15 @@ func (r *FlushData) Response(w http.ResponseWriter, req *http.Request, log *slog
 	var b []byte
 	for {
 		select {
-		case <-req.Context().Done():
-			metrics.AppResponsesTotalInc(req.Pattern, http.StatusGone)
-			return
+		case <-r.ctx.Done():
+			return http.StatusGone
 		case b, ok = <-r.data:
 			if !ok {
-				metrics.AppResponsesTotalInc(req.Pattern, http.StatusOK)
-				return
+				return http.StatusOK
 			}
 			if _, err := w.Write(b); err != nil {
-				metrics.AppResponsesTotalInc(req.Pattern, http.StatusInternalServerError)
 				log.Error("Failed to write a piece of data", slog.Any("err", err))
-				return
+				return http.StatusInternalServerError
 			}
 			flusher.Flush()
 		}

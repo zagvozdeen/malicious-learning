@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Card struct {
@@ -39,29 +41,56 @@ func (c *Card) GetHash() string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
+func (s *Store) GetAllCards(ctx context.Context) (cards []Card, err error) {
+	var rows pgx.Rows
+	rows, err = s.querier(ctx).Query(
+		ctx,
+		"SELECT id, uid, uuid, question, answer, module_id, is_active, hash, created_at, updated_at FROM cards WHERE is_active = TRUE ORDER BY uid",
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var card Card
+		err = rows.Scan(
+			&card.ID,
+			&card.UID,
+			&card.UUID,
+			&card.Question,
+			&card.Answer,
+			&card.ModuleID,
+			&card.IsActive,
+			&card.Hash,
+			&card.CreatedAt,
+			&card.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, card)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return cards, nil
+}
+
 func (s *Store) GetCards(ctx context.Context, courseSlug string, moduleIDs []int) ([]Card, error) {
-	if len(moduleIDs) == 0 {
+	if len(moduleIDs) == 0 || courseSlug == "" {
 		return nil, nil
 	}
 	pattern := make([]string, 0, len(moduleIDs))
-	args := make([]any, 0, len(moduleIDs))
+	args := make([]any, 0, len(moduleIDs)+1)
 	for i := range moduleIDs {
 		pattern = append(pattern, fmt.Sprintf("$%d", i+1))
 		args = append(args, moduleIDs[i])
 	}
-	joinCourses := ""
-	courseFilter := ""
-	cleanSlug := strings.TrimSpace(courseSlug)
-	if cleanSlug != "" {
-		joinCourses = "JOIN courses co ON co.id = c.course_id"
-		courseFilter = fmt.Sprintf(" AND co.slug = $%d", len(args)+1)
-		args = append(args, cleanSlug)
-	}
+	args = append(args, courseSlug)
 	sql := fmt.Sprintf(
-		"SELECT c.id, c.uid, c.uuid, c.question, c.answer, c.module_id, c.is_active, c.hash, c.created_at, c.updated_at FROM cards c %s WHERE c.is_active = true AND c.module_id in (%s)%s ORDER BY c.uid",
-		joinCourses,
+		"SELECT c.id, c.uid, c.uuid, c.question, c.answer, c.module_id, c.is_active, c.hash, c.created_at, c.updated_at FROM cards c JOIN courses co ON co.id = c.course_id WHERE c.is_active = true AND c.module_id in (%s) AND co.slug = $%d ORDER BY c.uid",
 		strings.Join(pattern, ","),
-		courseFilter,
+		len(args)+1,
 	)
 	rows, err := s.querier(ctx).Query(ctx, sql, args...)
 	if err != nil {

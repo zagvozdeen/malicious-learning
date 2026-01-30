@@ -14,6 +14,7 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/zagvozdeen/malicious-learning/internal/api/core"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -69,75 +70,75 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type HandlerFunc func(*http.Request, *store.User) Response
-
-func (s *Service) auth(fn HandlerFunc) http.HandlerFunc {
+func (s *Service) auth(fn core.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, res := s.checkAuth(r, r.Header.Get("Authorization"))
 		if res != nil {
-			res.Response(w, r, s.log, s.metrics)
+			status := res.Response(w, s.log)
+			s.metrics.AppResponsesTotalInc(r.Pattern, status)
 			return
 		}
 		log := s.log.With(slog.Int("user_id", user.ID))
-		fn(r, user).Response(w, r, log, s.metrics)
+		status := fn(r, user).Response(w, log)
+		s.metrics.AppResponsesTotalInc(r.Pattern, status)
 	}
 }
 
-func (s *Service) checkAuth(r *http.Request, token string) (*store.User, Response) {
+func (s *Service) checkAuth(r *http.Request, token string) (*store.User, core.Response) {
 	switch {
 	case strings.HasPrefix(token, "tma "):
 		return s.authTMA(r, token)
 	case strings.HasPrefix(token, "Bearer "):
 		return s.authBearer(r, token)
 	default:
-		return nil, rErr(http.StatusUnauthorized, fmt.Errorf("missing authorization header"))
+		return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("missing authorization header"))
 	}
 }
 
-func (s *Service) authTMA(r *http.Request, token string) (*store.User, Response) {
+func (s *Service) authTMA(r *http.Request, token string) (*store.User, core.Response) {
 	token = strings.TrimPrefix(token, "tma ")
 	values, err := url.ParseQuery(token)
 	if err != nil {
-		return nil, rErr(http.StatusUnauthorized, fmt.Errorf("failed to parse tma token: %w", err))
+		return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("failed to parse tma token: %w", err))
 	}
 	u, ok := bot.ValidateWebappRequest(values, s.cfg.TelegramBotToken)
 	if !ok {
-		return nil, rErr(http.StatusUnauthorized, fmt.Errorf("invalid tma token"))
+		return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("invalid tma token"))
 	}
 	var user *store.User
 	user, err = s.store.GetUserByTID(r.Context(), u.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, rErr(http.StatusUnauthorized, fmt.Errorf("tma user not found: %w", err))
+			return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("tma user not found: %w", err))
 		}
-		return nil, rErr(http.StatusInternalServerError, fmt.Errorf("failed to load user: %w", err))
+		return nil, core.Err(http.StatusInternalServerError, fmt.Errorf("failed to load user: %w", err))
 	}
 	return user, nil
 }
 
-func (s *Service) authBearer(r *http.Request, token string) (*store.User, Response) {
+func (s *Service) authBearer(r *http.Request, token string) (*store.User, core.Response) {
 	token = strings.TrimPrefix(token, "Bearer ")
 	var claims jwt.RegisteredClaims
 	t, err := jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
 		return []byte(s.cfg.AppSecret), nil
 	})
 	if err != nil {
-		return nil, rErr(http.StatusUnauthorized, fmt.Errorf("failed to parse token: %w", err))
+		return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("failed to parse token: %w", err))
 	}
 	if !t.Valid {
-		return nil, rErr(http.StatusUnauthorized, fmt.Errorf("invalid token"))
+		return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("invalid token"))
 	}
 	id, err := strconv.Atoi(claims.ID)
 	if err != nil {
-		return nil, rErr(http.StatusUnauthorized, fmt.Errorf("invalid token: %w, id=%s", err, claims.ID))
+		return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("invalid token: %w, id=%s", err, claims.ID))
 	}
 	var user *store.User
 	user, err = s.store.GetUserByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, rErr(http.StatusUnauthorized, fmt.Errorf("user not found: %w", err))
+			return nil, core.Err(http.StatusUnauthorized, fmt.Errorf("user not found: %w", err))
 		}
-		return nil, rErr(http.StatusInternalServerError, fmt.Errorf("failed to load user: %w", err))
+		return nil, core.Err(http.StatusInternalServerError, fmt.Errorf("failed to load user: %w", err))
 	}
 	return user, nil
 }

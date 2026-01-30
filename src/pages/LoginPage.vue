@@ -1,21 +1,23 @@
 <template>
-  <div class="min-h-dvh w-full flex items-center justify-center">
-    <form @submit.prevent="onSubmitForm">
-      <input
-        type="text"
-        placeholder="Username"
-        v-model="form.username"
-      >
-      <input
-        type="password"
-        placeholder="Password"
-        v-model="form.password"
-      >
-      <button type="submit">
-        Login
-      </button>
-    </form>
-  </div>
+  <AppLayout class="max-w-md">
+    <div class="min-h-dvh w-full flex items-center justify-center">
+      <form @submit.prevent="onSubmitForm">
+        <input
+          type="text"
+          placeholder="Username"
+          v-model="form.username"
+        >
+        <input
+          type="password"
+          placeholder="Password"
+          v-model="form.password"
+        >
+        <button type="submit">
+          Login
+        </button>
+      </form>
+    </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -23,6 +25,7 @@ import { useRouter } from 'vue-router'
 import { reactive } from 'vue'
 import { useFetch } from '@/composables/useFetch.ts'
 import { useState } from '@/composables/useState.ts'
+import AppLayout from '@/components/AppLayout.vue'
 
 const router = useRouter()
 const state = useState()

@@ -1,146 +1,144 @@
 <template>
-  <div
-    class="min-h-dvh w-full flex items-center justify-center"
-    :class="{
-      'pb-34': ts && ts.is_active,
-      'pb-12': !ts || (ts && !ts.is_active),
-    }"
-    style="padding-top: calc(var(--tg-content-safe-area-inset-top, calc(var(--spacing) * 12)) + var(--tg-safe-area-inset-top, 0px))"
-  >
-    <div class="flex flex-col gap-4 w-full">
-      <AppSpinner v-if="loading" />
-      <ExamCard
-        v-if="!loading && ts && ts.is_active"
-        :front="currentQuestion.question"
-        :back="currentQuestion.answer"
-      >
-        <template #header>
-          <span>{{ currentQuestion.module_name }} [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>&nbsp;<span
-            v-show="currentQuestion.status == 'forgot'"
-            class="text-red-500"
-          >[вы забыли]</span><span
-            v-show="currentQuestion.status == 'remember'"
-            class="text-green-500"
-          >[вы вспомнили]</span>
-        </template>
-        <template #default>
-          <article
-            v-html="currentQuestion.answer"
-            class="m-6 text-justify flex flex-col gap-2"
-            @click="onArticleClick"
-          />
-        </template>
-      </ExamCard>
-
-      <div
-        v-if="ts && !ts.is_active"
-        class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg"
-      >
-        <div class="text-center uppercase text-sm font-bold py-1 select-none">
-          Результаты
-        </div>
-        <span class="h-px w-full bg-gray-500/20" />
-        <div
-          v-if="loadingResults && !ts.recommendations"
-          class="flex flex-col gap-4 my-2 p-4"
+  <AppLayout class="max-w-md">
+    <div
+      class="min-h-dvh w-full flex items-center justify-center"
+      :class="{
+        'pb-34': ts && ts.is_active,
+        'pb-12': !ts || (ts && !ts.is_active),
+      }"
+      style="padding-top: calc(var(--tg-content-safe-area-inset-top, calc(var(--spacing) * 12)) + var(--tg-safe-area-inset-top, 0px))"
+    >
+      <div class="flex flex-col gap-4 w-full">
+        <AppSpinner v-if="loading" />
+        <ExamCard
+          v-if="!loading && ts && ts.is_active"
+          :front="currentQuestion.question"
+          :back="currentQuestion.answer"
         >
-          <span class="text-center font-bold">Рекомендации рассчитываются</span>
-          <AppSpinner />
-        </div>
-        <div
-          v-if="ts.recommendations"
-          class="p-4"
-        >
-          <div
-            v-html="ts.recommendations"
-            class="text-justify"
-          />
-        </div>
-        <div
-          v-else
-          class="p-4 text-center font-medium"
-        >
-          Не удалось получить рекомендации, пожалуйста, попробуйте начать новый тест чтобы получить рекомендации
-        </div>
-        <span class="h-px w-full bg-gray-500/20" />
-        <div class="grid sm:grid-cols-10 grid-cols-5 gap-2 p-4">
-          <div
-            v-for="q in questions"
-            :key="q.id"
-            class="rounded text-center font-bold"
-            :class="{ [UserAnswerStatusColors[q.status]]: true }"
-          >
-            {{ q.uid }}
-          </div>
-        </div>
-        <router-link
-          :to="{ name: 'main' }"
-          class="hover:bg-gray-500/20 cursor-pointer p-4 rounded-b-4xl font-medium bg-gray-500/15 text-center"
-        >
-          На главную
-        </router-link>
-      </div>
-
-      <div
-        v-if="ts && ts.is_active"
-        class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2"
-      >
-        <div
-          v-if="!loading"
-          class="h-8 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
-          :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
-        >
-          <div
-            v-for="q in questions"
-            :key="q.id"
-            class="flex items-end justify-center pb-0.5 rounded"
-            :class="{ [UserAnswerStatusColors[q.status]]: true }"
-          >
-            <span
-              class="size-1.5 rounded-full bg-white"
-              v-show="currentQuestion.uuid === q.uuid"
+          <template #header>
+            <span>{{ currentQuestion.module_name }} [{{ currentQuestionIndex + 1 }}/{{ questions.length }}]</span>&nbsp;<span
+              v-show="currentQuestion.status == 'forgot'"
+              class="text-red-500"
+            >[вы забыли]</span><span
+              v-show="currentQuestion.status == 'remember'"
+              class="text-green-500"
+            >[вы вспомнили]</span>
+          </template>
+          <template #default>
+            <article
+              v-html="currentQuestion.answer"
+              class="m-6 text-justify flex flex-col gap-2"
+              @click="onSpoilerContainerClick"
             />
+          </template>
+        </ExamCard>
+
+        <div
+          v-if="ts && !ts.is_active"
+          class="flex flex-col rounded-4xl bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg"
+        >
+          <div class="text-center uppercase text-sm font-bold py-1 select-none">
+            Результаты
           </div>
+          <span class="h-px w-full bg-gray-500/20" />
+          <div
+            v-if="loadingResults && !ts.recommendations"
+            class="flex flex-col gap-4 my-2 p-4"
+          >
+            <span class="text-center font-bold">Рекомендации рассчитываются</span>
+            <AppSpinner />
+          </div>
+          <div
+            v-if="ts.recommendations"
+            class="p-4 text-justify"
+            v-html="ts.recommendations"
+          />
+          <div
+            v-if="!loadingResults && !ts.recommendations"
+            class="p-4 text-center font-medium"
+          >
+            Не удалось получить рекомендации, пожалуйста, попробуйте начать новый тест чтобы получить рекомендации
+          </div>
+          <span class="h-px w-full bg-gray-500/20" />
+          <div class="grid sm:grid-cols-10 grid-cols-5 gap-2 p-4">
+            <div
+              v-for="q in questions"
+              :key="q.id"
+              class="rounded text-center font-bold"
+              :class="{ [UserAnswerStatusColors[q.status]]: true }"
+            >
+              {{ q.uid }}
+            </div>
+          </div>
+          <router-link
+            :to="{ name: 'main' }"
+            class="hover:bg-gray-500/20 cursor-pointer p-4 rounded-b-4xl font-medium bg-gray-500/15 text-center"
+          >
+            На главную
+          </router-link>
         </div>
 
-        <div class="grid grid-cols-[min-content_1fr_min-content] gap-2">
-          <button
-            class="flex items-center justify-center py-1 px-4.5 transition bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg hover:bg-gray-500/25 cursor-pointer"
-            type="button"
-            @click="onClickPrev"
+        <div
+          v-if="ts && ts.is_active"
+          class="fixed flex flex-col gap-2 w-full max-w-md px-4 bottom-4 left-1/2 -translate-x-1/2"
+        >
+          <div
+            v-if="!loading"
+            class="h-8 grid gap-0.5 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 shadow-lg py-1 px-2 rounded-full"
+            :style="{ 'grid-template-columns': `repeat(${questions.length}, 1fr)` }"
           >
-            <i class="bi bi-chevron-left text-base flex" />
-          </button>
-          <div class="grid grid-cols-[1fr_min-content_1fr] gap-1 p-1 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg">
-            <button
-              class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold text-center"
-              @click="onClickRememberButton"
-              type="button"
+            <div
+              v-for="q in questions"
+              :key="q.id"
+              class="flex items-end justify-center pb-0.5 rounded"
+              :class="{ [UserAnswerStatusColors[q.status]]: true }"
             >
-              <i class="bi bi-lightbulb-fill text-sm" />
-              <span>Вспомнил</span>
+              <span
+                class="size-1.5 rounded-full bg-white"
+                v-show="currentQuestion.uuid === q.uuid"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-[min-content_1fr_min-content] gap-2">
+            <button
+              class="flex items-center justify-center py-1 px-4.5 transition bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg hover:bg-gray-500/25 cursor-pointer"
+              type="button"
+              @click="onClickPrev"
+            >
+              <i class="bi bi-chevron-left text-base flex" />
             </button>
-            <span class="w-px bg-gray-500/20" />
+            <div class="grid grid-cols-[1fr_min-content_1fr] gap-1 p-1 bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg">
+              <button
+                class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold text-center"
+                @click="onClickRememberButton"
+                type="button"
+              >
+                <i class="bi bi-lightbulb-fill text-sm" />
+                <span>Вспомнил</span>
+              </button>
+              <span class="w-px bg-gray-500/20" />
+              <button
+                class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold text-center"
+                @click="onClickForgetButton"
+                type="button"
+              >
+                <i class="bi bi-heartbreak-fill text-sm" />
+                <span>Забыл</span>
+              </button>
+            </div>
             <button
-              class="flex flex-col rounded-full py-1 px-3 transition hover:bg-gray-500/25 cursor-pointer text-xs font-bold text-center"
-              @click="onClickForgetButton"
+              class="flex items-center justify-center py-1 px-4.5 transition bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg hover:bg-gray-500/25 cursor-pointer"
               type="button"
+              @click="onClickNext"
             >
-              <i class="bi bi-heartbreak-fill text-sm" />
-              <span>Забыл</span>
+              <i class="bi bi-chevron-right text-base flex" />
             </button>
           </div>
-          <button
-            class="flex items-center justify-center py-1 px-4.5 transition bg-gray-500/20 backdrop-blur-lg border border-gray-500/20 rounded-full shadow-lg hover:bg-gray-500/25 cursor-pointer"
-            type="button"
-            @click="onClickNext"
-          >
-            <i class="bi bi-chevron-right text-base flex" />
-          </button>
         </div>
       </div>
     </div>
-  </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -157,6 +155,8 @@ import {
 } from '@/types.ts'
 import AppSpinner from '@/components/AppSpinner.vue'
 import { useNotifications } from '@/composables/useNotifications.ts'
+import AppLayout from '@/components/AppLayout.vue'
+import { onSpoilerContainerClick } from '@/composables/useSpoiler.ts'
 
 const route = useRoute()
 const router = useRouter()
@@ -242,7 +242,7 @@ const updateUserAnswerStatus = (uuid: string, status: UserAnswerStatus) => {
                   case '<start>':
                     loadingResults.value = true
                     break
-                  case '<end>':
+                  case '</start>':
                     loadingResults.value = false
                     break
                   default:
@@ -264,17 +264,6 @@ const onClickRememberButton = () => {
 
 const onClickForgetButton = () => {
   updateUserAnswerStatus(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
-}
-
-const onArticleClick = (e: unknown) => {
-  if (e instanceof Event) {
-    if (e.target instanceof Element) {
-      const el = e.target.closest('.spoiler')
-      if (el && !el.classList.contains('_show')) {
-        el.classList.add('_show')
-      }
-    }
-  }
 }
 
 onMounted(() => {
@@ -310,17 +299,6 @@ onUnmounted(() => {
 </script>
 
 <style>
-.spoiler {
-  filter: blur(4px);
-  transition: filter 0.1s ease-out;
-  cursor: pointer;
-
-  &._show {
-    filter: blur(0px);
-    cursor: text;
-  }
-}
-
 article {
   ul, ol {
     list-style-position: inside;

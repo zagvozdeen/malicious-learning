@@ -22,8 +22,6 @@ type Service struct {
 	log          *slog.Logger
 	store        store.Storage
 	processingTS sync.Map
-	events       chan Event
-	flushers     sync.Map
 	metrics      analytics.Metrics
 	bot          *bot.Bot
 	botStarted   chan struct{}
@@ -36,8 +34,6 @@ func New(ctx context.Context, cfg *config.Config, log *slog.Logger, store store.
 		log:          log,
 		store:        store,
 		processingTS: sync.Map{},
-		events:       make(chan Event, 10),
-		flushers:     sync.Map{},
 		metrics:      metrics,
 		botStarted:   make(chan struct{}, 1),
 	}
@@ -76,13 +72,6 @@ func (s *Service) Run() {
 			return
 		}
 		s.log.Info("Questions parsed")
-	})
-	wg.Go(func() {
-		if err := s.loopEvent(); err != nil {
-			s.log.Warn("Failed to handle events", slog.Any("err", err))
-			return
-		}
-		s.log.Info("Event loop stopped")
 	})
 	wg.Go(func() {
 		if err := s.startSendingMetrics(); err != nil {

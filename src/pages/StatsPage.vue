@@ -1,5 +1,7 @@
 <template>
-  <canvas ref="ctx" />
+  <AppLayout class="max-w-md">
+    <canvas ref="ctx" />
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -9,6 +11,7 @@ import { useFetch } from '@/composables/useFetch.ts'
 import { format } from 'date-fns'
 import { useState } from '@/composables/useState.ts'
 import { useRouter } from 'vue-router'
+import AppLayout from '@/components/AppLayout.vue'
 
 const ctx = useTemplateRef('ctx')
 const fetcher = useFetch()

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/zagvozdeen/malicious-learning/internal/api/core"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
@@ -24,28 +25,28 @@ type updateUserAnswerResponse struct {
 	TestSession *store.TestSession `json:"test_session"`
 }
 
-func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
+func (s *Service) updateUserAnswer(r *http.Request, user *store.User) core.Response {
 	var payload updateUserAnswerRequest
 	if err := json.UnmarshalRead(r.Body, &payload); err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
 	}
 
 	uuidValue := r.PathValue("uuid")
 	if uuidValue == "" {
-		return rErr(http.StatusBadRequest, fmt.Errorf("missing uuid"))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("missing uuid"))
 	}
 	if err := uuid.Validate(uuidValue); err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid uuid: %w", err))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("invalid uuid: %w", err))
 	}
 
 	status, err := enum.NewUserAnswerStatus(strings.TrimSpace(payload.Status))
 	if err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid status: %w", err))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("invalid status: %w", err))
 	}
 
 	ctx, err := s.store.Begin(r.Context())
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to begin transaction: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to begin transaction: %w", err))
 	}
 	defer s.store.Rollback(ctx)
 
@@ -53,37 +54,37 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 	ua, err = s.store.GetUserAnswerByUUID(ctx, uuidValue)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return rErr(http.StatusNotFound, fmt.Errorf("user answer not found: %w", err))
+			return core.Err(http.StatusNotFound, fmt.Errorf("user answer not found: %w", err))
 		}
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to get user answer: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to get user answer: %w", err))
 	}
 	if ua.Status != enum.UserAnswerStatusNull {
-		return rErr(http.StatusForbidden, fmt.Errorf("user answer status must be null"))
+		return core.Err(http.StatusForbidden, fmt.Errorf("user answer status must be null"))
 	}
 	var ts *store.TestSession
 	var still int
 	ts, still, err = s.store.GetTestSessionByID(ctx, ua.TestSessionID)
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to get test session: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to get test session: %w", err))
 	}
 	if ts.UserID != user.ID {
-		return rErr(http.StatusForbidden, fmt.Errorf("you can not edit this user answer"))
+		return core.Err(http.StatusForbidden, fmt.Errorf("you can not edit this user answer"))
 	}
 	if !ts.IsActive {
-		return rErr(http.StatusForbidden, fmt.Errorf("test session is not active"))
+		return core.Err(http.StatusForbidden, fmt.Errorf("test session is not active"))
 	}
 	ua.Status = status
 	ua.UpdatedAt = time.Now()
 	err = s.store.UpdateUserAnswer(ctx, ua)
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to update user answer: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to update user answer: %w", err))
 	}
 	if still-1 == 0 {
 		ts.IsActive = false
 		ts.UpdatedAt = time.Now()
 		err = s.store.UpdateTestSession(ctx, ts)
 		if err != nil {
-			return rErr(http.StatusInternalServerError, fmt.Errorf("failed to update test session: %w", err))
+			return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to update test session: %w", err))
 		}
 	}
 	s.store.Commit(ctx)
@@ -97,7 +98,7 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 		}()
 	}
 
-	return rData(http.StatusOK, updateUserAnswerResponse{
+	return core.Data(http.StatusOK, updateUserAnswerResponse{
 		UserAnswer:  ua,
 		TestSession: ts,
 	})

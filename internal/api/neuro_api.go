@@ -16,11 +16,13 @@ import (
 	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
 
+const channelSize = 100
+
 func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int) error {
 	if _, ok := s.processingTS.Load(user.ID); ok {
 		return fmt.Errorf("processing ts %d already exists", id)
 	}
-	ch := make(chan []byte, 100)
+	ch := make(chan []byte, channelSize)
 	defer close(ch)
 	s.processingTS.Store(user.ID, ch)
 	defer s.processingTS.Delete(user.ID)
@@ -76,14 +78,40 @@ func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int
 		options = append(options, option.WithDebugLog(slog.NewLogLogger(s.log.Handler(), slog.LevelDebug)))
 	}
 	client := openai.NewClient(options...)
-	res, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+	stream := client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(strings.Join(msgs, "\n")),
 		},
 		Model: openai.ChatModelGPT5Mini,
+		StreamOptions: openai.ChatCompletionStreamOptionsParam{
+			IncludeUsage: openai.Bool(true),
+		},
 	})
+
+	acc := openai.ChatCompletionAccumulator{}
+	var content strings.Builder
+	var counter int
+	for stream.Next() {
+		chunk := stream.Current()
+		if !acc.AddChunk(chunk) {
+			return errors.New("failed to accumulate chat model stream")
+		}
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+		delta := chunk.Choices[0].Delta.Content
+		if delta == "" {
+			continue
+		}
+		content.WriteString(delta)
+		if counter < channelSize-3 {
+			ch <- []byte(strings.ReplaceAll(content.String(), "\n", "<br>"))
+			counter++
+		}
+	}
+	err = stream.Err()
 	if err != nil {
-		return fmt.Errorf("failed to create chat model: %w", err)
+		return fmt.Errorf("failed to stream chat model: %w", err)
 	}
 	uid, err := uuid.NewV7()
 	if err != nil {
@@ -92,28 +120,30 @@ func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int
 	err = s.store.CreateChatCompletions(ctx, &store.ChatCompletions{
 		UUID:             uid.String(),
 		TestSessionID:    id,
-		Model:            res.Model,
-		CompletionTokens: res.Usage.CompletionTokens,
-		PromptTokens:     res.Usage.PromptTokens,
-		TotalTokens:      res.Usage.TotalTokens,
-		Date:             res.Created,
+		Model:            acc.Model,
+		CompletionTokens: acc.Usage.CompletionTokens,
+		PromptTokens:     acc.Usage.PromptTokens,
+		TotalTokens:      acc.Usage.TotalTokens,
+		Date:             acc.Created,
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create chat model: %w", err)
 	}
-	if len(res.Choices) == 0 {
+	if len(acc.Choices) == 0 {
 		return errors.New("empty chat model choices")
 	}
-	ts.Recommendations = null.WrapString(strings.ReplaceAll(res.Choices[0].Message.Content, "\n", "<br>"))
+	finalRecommendations := strings.ReplaceAll(content.String(), "\n", "<br>")
+	ch <- []byte(finalRecommendations)
+	ts.Recommendations = null.WrapString(finalRecommendations)
 	ts.UpdatedAt = time.Now()
 	err = s.store.UpdateTestSession(ctx, ts)
 	if err != nil {
 		return err
 	}
 	s.store.Commit(ctx)
-	ch <- []byte("<end>")
+	ch <- []byte("</start>")
 	s.metrics.AppGeneratedRecommendationsCountInc()
 	return nil
 }

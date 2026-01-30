@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/zagvozdeen/malicious-learning/internal/api/core"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
 	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
@@ -22,31 +23,31 @@ type createTestSessionRequest struct {
 	Shuffle    bool   `json:"shuffle"`
 }
 
-func (s *Service) createTestSession(r *http.Request, user *store.User) Response {
+func (s *Service) createTestSession(r *http.Request, user *store.User) core.Response {
 	var payload createTestSessionRequest
 	if err := json.UnmarshalRead(r.Body, &payload); err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("invalid json body: %w", err))
 	}
 
 	payload.CourseSlug = strings.TrimSpace(payload.CourseSlug)
 	if payload.CourseSlug == "" {
-		return rErr(http.StatusBadRequest, fmt.Errorf("missing course_slug"))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("missing course_slug"))
 	}
 
 	course, err := s.store.GetCourseBySlug(r.Context(), payload.CourseSlug)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return rErr(http.StatusNotFound, fmt.Errorf("course not found: %w", err))
+			return core.Err(http.StatusNotFound, fmt.Errorf("course not found: %w", err))
 		}
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load course: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to load course: %w", err))
 	}
 
 	moduleIDs := slices.Clone(payload.ModuleIDs)
 	slices.Sort(moduleIDs)
 
-	cards, err := s.store.GetCards(r.Context(), payload.CourseSlug, moduleIDs)
+	cards, err := s.store.GetCards(r.Context(), strings.TrimSpace(payload.CourseSlug), moduleIDs)
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load cards: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to load cards: %w", err))
 	}
 
 	if payload.Shuffle && len(cards) > 1 {
@@ -58,7 +59,7 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 
 	uid, err := uuid.NewV7()
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
 	}
 	now := time.Now()
 	session := &store.TestSession{
@@ -75,7 +76,7 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 	for _, card := range cards {
 		uid, err = uuid.NewV7()
 		if err != nil {
-			return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
+			return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to create uuid v7: %w", err))
 		}
 		answers = append(answers, store.UserAnswer{
 			UUID:      uid.String(),
@@ -87,11 +88,11 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 	}
 	err = s.store.CreateTestSession(r.Context(), session, answers)
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to create test session: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to create test session: %w", err))
 	}
 	s.metrics.AppCreatedTestSessionsCountInc()
 
-	return rData(http.StatusOK, session)
+	return core.Data(http.StatusOK, session)
 }
 
 type getTestSessionResponse struct {
@@ -99,32 +100,32 @@ type getTestSessionResponse struct {
 	UserAnswers []store.FullUserAnswer `json:"user_answers"`
 }
 
-func (s *Service) getTestSession(r *http.Request, user *store.User) Response {
+func (s *Service) getTestSession(r *http.Request, user *store.User) core.Response {
 	groupUUID := r.PathValue("uuid")
 	if groupUUID == "" {
-		return rErr(http.StatusBadRequest, fmt.Errorf("missing uuid"))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("missing uuid"))
 	}
 	if err := uuid.Validate(groupUUID); err != nil {
-		return rErr(http.StatusBadRequest, fmt.Errorf("invalid uuid: %w", err))
+		return core.Err(http.StatusBadRequest, fmt.Errorf("invalid uuid: %w", err))
 	}
 
 	ts, err := s.store.GetTestSessionByUUID(r.Context(), groupUUID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return rErr(http.StatusNotFound, fmt.Errorf("test session not found: %w", err))
+			return core.Err(http.StatusNotFound, fmt.Errorf("test session not found: %w", err))
 		}
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to get test session: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to get test session: %w", err))
 	}
 	if ts.UserID != user.ID {
-		return rErr(http.StatusForbidden, fmt.Errorf("you can not get test session: %w", err))
+		return core.Err(http.StatusForbidden, fmt.Errorf("you can not get test session: %w", err))
 	}
 
 	answers, err := s.store.GetUserAnswersByTestSessionID(r.Context(), ts.ID)
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load user answers: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to load user answers: %w", err))
 	}
 
-	return rData(http.StatusOK, getTestSessionResponse{
+	return core.Data(http.StatusOK, getTestSessionResponse{
 		TestSession: ts,
 		UserAnswers: answers,
 	})
@@ -134,11 +135,11 @@ type getTestSessionsResponse struct {
 	Data []store.TestSessionSummary `json:"data"`
 }
 
-func (s *Service) getTestSessions(r *http.Request, user *store.User) Response {
+func (s *Service) getTestSessions(r *http.Request, user *store.User) core.Response {
 	sessions, err := s.store.GetTestSessions(r.Context(), user.ID)
 	if err != nil {
-		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to load test sessions: %w", err))
+		return core.Err(http.StatusInternalServerError, fmt.Errorf("failed to load test sessions: %w", err))
 	}
 
-	return rData(http.StatusOK, getTestSessionsResponse{Data: sessions})
+	return core.Data(http.StatusOK, getTestSessionsResponse{Data: sessions})
 }
