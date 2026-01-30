@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -24,65 +22,62 @@ func (s *Service) startSendingMetrics() error {
 	}
 	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
-	var old analytics.Metrics = nil
-	var oldHash string
+	var old analytics.Snapshot
 	for {
 		select {
 		case <-s.ctx.Done():
 			return nil
 		case <-s.botStarted:
-			old, oldHash = s.sendMetrics(s.metrics.Clone(), oldHash)
+			snap := s.metrics.Snapshot()
+			s.sendMetrics(snap, old)
+			old = snap
 		case <-ticker.C:
-			old, oldHash = s.sendMetrics(old, oldHash)
+			snap := s.metrics.Snapshot()
+			s.sendMetrics(snap, old)
+			old = snap
 		}
 	}
 }
 
-func (s *Service) sendMetrics(old analytics.Metrics, oldHash string) (analytics.Metrics, string) {
-	var lines = []string{
-		"*Вот сводка за последний час\\:*", "",
-		fmt.Sprintf("– *Создано пользователей\\:* %s", s.compareTwoValues(old.GetAppUsersCreatedCount, s.metrics.GetAppUsersCreatedCount)),
-		fmt.Sprintf("– *Отправлено не сообщений\\:* %s", s.compareTwoValues(old.GetAppNotMessageUpdateCount, s.metrics.GetAppNotMessageUpdateCount)),
-		fmt.Sprintf("– *Сгенерировано рекомендаций\\:* %s", s.compareTwoValues(old.GetAppGeneratedRecommendationsCount, s.metrics.GetAppGeneratedRecommendationsCount)),
-		fmt.Sprintf("– *Обновлено ответов пользователей\\:* %s", s.compareTwoValues(old.GetAppUpdatedUserAnswersCount, s.metrics.GetAppUpdatedUserAnswersCount)),
-		fmt.Sprintf("– *Начато тестовых сессий\\:* %s", s.compareTwoValues(old.GetAppCreatedTestSessionsCount, s.metrics.GetAppCreatedTestSessionsCount)),
-		"", "**Статистика по страницам\\:**", "",
-	}
-	lines = append(lines, s.getAppResponsesTotalDiff(old, s.metrics)...)
-	text := strings.Join(lines, "\n")
-	hasher := sha256.New()
-	hasher.Write([]byte(text))
-	hash := hex.EncodeToString(hasher.Sum(nil))
-	if hash == oldHash {
+func (s *Service) sendMetrics(new analytics.Snapshot, old analytics.Snapshot) {
+	if new.Hash() == old.Hash() {
 		s.log.Info("Skip sending stats due to there is no changes")
-		return s.metrics.Clone(), hash
+		return
 	}
+	var lines = []string{
+		"*Вот сводка за последний час\\:*\n",
+		fmt.Sprintf("– *Создано пользователей\\:* %s", compare(new.AppUsersCreatedCount, old.AppUsersCreatedCount)),
+		fmt.Sprintf("– *Отправлено не-сообщений\\:* %s", compare(new.AppNotMessageUpdateCount, old.AppNotMessageUpdateCount)),
+		fmt.Sprintf("– *Создано рекомендаций\\:* %s", compare(new.AppGeneratedRecommendationsCount, old.AppGeneratedRecommendationsCount)),
+		fmt.Sprintf("– *Обновлено ответов\\:* %s", compare(new.AppUpdatedUserAnswersCount, old.AppUpdatedUserAnswersCount)),
+		fmt.Sprintf("– *Начато тестовых сессий\\:* %s", compare(new.AppCreatedTestSessionsCount, old.AppCreatedTestSessionsCount)),
+		"", "**Статистика по страницам\\:**\n",
+	}
+	lines = append(lines, getAppResponsesTotalDiff(new, old)...)
 	_, err := s.bot.SendMessage(s.ctx, &bot.SendMessageParams{
 		ChatID:    s.cfg.TelegramBotGroup,
-		Text:      text,
+		Text:      strings.Join(lines, "\n"),
 		ParseMode: models.ParseModeMarkdown,
 	})
 	if err != nil {
 		s.log.Error("Failed to send message to group", slog.Any("err", err))
 	}
-	return s.metrics.Clone(), hash
 }
 
-func (s *Service) compareTwoValues(old func() int64, new func() int64) string {
-	o, n := old(), new()
-	if n == o {
-		return strconv.Itoa(int(n))
+func compare(n int64, o int64) string {
+	if diff := n - o; diff != 0 {
+		return fmt.Sprintf("%d \\(\\+%d\\)", n, diff)
 	}
-	return fmt.Sprintf("%d \\(\\+%d\\)", n, n-o)
+	return strconv.Itoa(int(n))
 }
 
-func (s *Service) getAppResponsesTotalDiff(old analytics.Metrics, new analytics.Metrics) (r []string) {
-	o := old.GetAppResponsesTotal()
-	for path, count := range new.GetAppResponsesTotal() {
-		if o[path] == count {
-			r = append(r, fmt.Sprintf("– *%s:* %d", bot.EscapeMarkdown(path), count))
+func getAppResponsesTotalDiff(new analytics.Snapshot, old analytics.Snapshot) []string {
+	r := make([]string, 0, len(new.AppResponsesTotal))
+	for path, count := range new.AppResponsesTotal {
+		if diff := count - old.AppResponsesTotal[path]; diff != 0 {
+			r = append(r, fmt.Sprintf("– *%s:* %d \\(\\+%d\\)", bot.EscapeMarkdown(path), count, diff))
 		} else {
-			r = append(r, fmt.Sprintf("– *%s:* %d \\(\\+%d\\)", bot.EscapeMarkdown(path), count, count-o[path]))
+			r = append(r, fmt.Sprintf("– *%s:* %d", bot.EscapeMarkdown(path), count))
 		}
 	}
 	return r

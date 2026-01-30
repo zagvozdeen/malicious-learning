@@ -12,14 +12,14 @@ func (a *Analytics) open() {
 		a.log.Warn("Failed to open and read metrics file", slog.Any("err", err))
 		return
 	}
-	err = json.Unmarshal(b, a)
+	err = json.Unmarshal(b, &a.snapshot)
 	if err != nil {
 		a.log.Warn("Failed to parse metrics file", slog.Any("err", err))
 	}
 }
 
 func (a *Analytics) close() {
-	b, err := json.Marshal(a)
+	b, err := json.Marshal(a.snapshot)
 	if err != nil {
 		a.log.Warn("Failed to marshal metrics to file", slog.Any("err", err))
 		return

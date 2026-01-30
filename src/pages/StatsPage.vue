@@ -17,31 +17,58 @@ const ctx = useTemplateRef('ctx')
 const fetcher = useFetch()
 const state = useState()
 const router = useRouter()
+let chart: Chart | null = null
 
 onMounted(() => {
   fetcher
     .getTestSessions()
     .then(data => {
       if (data.ok && ctx.value) {
-        const label = ['2026-01-16', '2026-01-17']
-        const values = [
-          { label: 'null', data: [0, 0] },
-          { label: 'forget', data: [0, 0] },
-          { label: 'remember', data: [0, 0] },
-        ]
-        for (const ts of data.data.data) {
-          const d = format(ts.created_at, 'yyyy-MM-dd')
-          const i = label.findIndex(v => v === d)
-          if (values[0] && values[0].data[i] !== undefined) values[0].data[i] += ts.count_null
-          if (values[1] && values[1].data[i] !== undefined) values[1].data[i] += ts.count_forget
-          if (values[2] && values[2].data[i] !== undefined) values[2].data[i] += ts.count_remember
+        const summaries = data.data.data
+        const byDate = new Map<string, { empty: number; forget: number; remember: number }>()
+        for (const ts of summaries) {
+          const d = format(new Date(ts.created_at), 'yyyy-MM-dd')
+          const entry = byDate.get(d) ?? { empty: 0, forget: 0, remember: 0 }
+          entry.empty += ts.count_null
+          entry.forget += ts.count_forget
+          entry.remember += ts.count_remember
+          byDate.set(d, entry)
         }
 
-        new Chart(ctx.value, {
+        const labels = Array.from(byDate.keys()).sort()
+        const datasets = [
+          {
+            label: 'Не отвечено',
+            data: labels.map(label => byDate.get(label)?.empty ?? 0),
+            backgroundColor: '#6b7280',
+          },
+          {
+            label: 'Забыл',
+            data: labels.map(label => byDate.get(label)?.forget ?? 0),
+            backgroundColor: '#ef4444',
+          },
+          {
+            label: 'Вспомнил',
+            data: labels.map(label => byDate.get(label)?.remember ?? 0),
+            backgroundColor: '#22c55e',
+          },
+        ]
+
+        if (chart) {
+          chart.destroy()
+        }
+        chart = new Chart(ctx.value, {
           type: 'bar',
           data: {
-            labels: label,
-            datasets: values,
+            labels,
+            datasets,
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { stacked: true },
+              y: { stacked: true, beginAtZero: true },
+            },
           },
         })
       }
@@ -56,6 +83,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
   if (state.isTelegramEnv()) {
     window.Telegram.WebApp.BackButton.hide()
   }
