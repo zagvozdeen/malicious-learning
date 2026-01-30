@@ -125,10 +125,10 @@ func (s *Service) getRoutes() *http.ServeMux {
 	mux.HandleFunc("POST /api/test-sessions", s.auth(s.createTestSession))
 	mux.HandleFunc("PATCH /api/user-answers/{uuid}", s.auth(s.updateUserAnswer))
 	mux.HandleFunc("GET /api/leaderboard", s.auth(s.getLeaderboard))
-	mux.HandleFunc("GET /api/events", s.sseAuth(s.getEvents))
 	mux.HandleFunc("GET /api/cards", s.auth(s.getCards))
 	mux.HandleFunc("GET /api/courses", s.auth(s.getCourses))
 	mux.HandleFunc("GET /api/modules", s.auth(s.getModules))
+	mux.HandleFunc("GET /api/changes", s.auth(s.getChanges))
 
 	return mux
 }

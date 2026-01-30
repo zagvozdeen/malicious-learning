@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/zagvozdeen/malicious-learning/internal/db/null"
+	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
 
 type TestSession struct {
@@ -50,7 +51,7 @@ func (s *Store) GetTestSessionByID(ctx context.Context, id int) (*TestSession, i
 	err := s.querier(ctx).QueryRow(
 		ctx,
 		"SELECT id, uuid, user_id, course_id, module_ids, is_shuffled, is_active, recommendations, created_at, updated_at, (SELECT COUNT(*) FROM user_answers WHERE test_session_id = $1 AND status = $2) FROM test_sessions WHERE id = $1",
-		id, UserAnswerStatusNull,
+		id, enum.UserAnswerStatusNull,
 	).Scan(
 		&session.ID,
 		&session.UUID,

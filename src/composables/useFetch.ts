@@ -104,6 +104,14 @@ const getModulesByCourseSlug = async (state: State, notify: Notify, slug: string
   })
 }
 
+const getChanges = (state: State, notify: Notify) => {
+  return fetch(`${state.getApiUrl()}/api/changes`, {
+    headers: {
+      'Authorization': state.getAuthorizationHeader(),
+    },
+  })
+}
+
 export const useFetch = () => {
   const state = useState()
   const notify = useNotifications()
@@ -117,5 +125,6 @@ export const useFetch = () => {
     getAllCards: () => getAllCards(state, notify),
     getAllCourses: () => getAllCourses(state, notify),
     getModulesByCourseSlug: (slug: string) => getModulesByCourseSlug(state, notify, slug),
+    getChanges: () => getChanges(state, notify),
   }
 }

@@ -70,40 +70,16 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) {
 }
 
 type HandlerFunc func(*http.Request, *store.User) Response
-type SSEHandlerFunc func(http.ResponseWriter, *http.Request, http.Flusher, *store.User) error
 
 func (s *Service) auth(fn HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, res := s.checkAuth(r, r.Header.Get("Authorization"))
 		if res != nil {
-			res.Response(w, r, s.log, user, s.metrics)
+			res.Response(w, r, s.log, s.metrics)
 			return
 		}
-		fn(r, user).Response(w, r, s.log, user, s.metrics)
-	}
-}
-
-func (s *Service) sseAuth(fn SSEHandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, res := s.checkAuth(r, r.URL.Query().Get("token"))
-		if res != nil {
-			res.Response(w, r, s.log, user, s.metrics)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			rErr(http.StatusHTTPVersionNotSupported, errors.New("streaming not supported")).Response(w, r, s.log, user, s.metrics)
-			return
-		}
-
-		if err := fn(w, r, flusher, user); err != nil {
-			s.log.Error("SSE auth failed", slog.Any("err", err))
-		}
+		log := s.log.With(slog.Int("user_id", user.ID))
+		fn(r, user).Response(w, r, log, s.metrics)
 	}
 }
 

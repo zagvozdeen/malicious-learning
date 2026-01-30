@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
+	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
 
 type updateUserAnswerRequest struct {
@@ -37,7 +38,7 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 		return rErr(http.StatusBadRequest, fmt.Errorf("invalid uuid: %w", err))
 	}
 
-	status, err := store.ParseUserAnswerStatus(strings.TrimSpace(payload.Status))
+	status, err := enum.NewUserAnswerStatus(strings.TrimSpace(payload.Status))
 	if err != nil {
 		return rErr(http.StatusBadRequest, fmt.Errorf("invalid status: %w", err))
 	}
@@ -56,7 +57,7 @@ func (s *Service) updateUserAnswer(r *http.Request, user *store.User) Response {
 		}
 		return rErr(http.StatusInternalServerError, fmt.Errorf("failed to get user answer: %w", err))
 	}
-	if ua.Status != store.UserAnswerStatusNull {
+	if ua.Status != enum.UserAnswerStatusNull {
 		return rErr(http.StatusForbidden, fmt.Errorf("user answer status must be null"))
 	}
 	var ts *store.TestSession

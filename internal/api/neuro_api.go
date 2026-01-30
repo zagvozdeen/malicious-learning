@@ -13,20 +13,19 @@ import (
 	"github.com/openai/openai-go/v3/option"
 	"github.com/zagvozdeen/malicious-learning/internal/db/null"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
+	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
 
 func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int) error {
-	if _, ok := s.processingTS.Load(id); ok {
+	if _, ok := s.processingTS.Load(user.ID); ok {
 		return fmt.Errorf("processing ts %d already exists", id)
 	}
-	s.processingTS.Store(id, struct{}{})
-	defer s.processingTS.Delete(id)
+	ch := make(chan []byte, 100)
+	defer close(ch)
+	s.processingTS.Store(user.ID, ch)
+	defer s.processingTS.Delete(user.ID)
 
-	s.events <- Event{
-		ID:    user.ID,
-		Event: "get-recommendations-start",
-		Data:  "Program is getting recommendations",
-	}
+	ch <- []byte("<start>")
 	ctx, err := s.store.Begin(s.ctx)
 	if err != nil {
 		return err
@@ -61,17 +60,10 @@ func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int
 		return a.UID - b.UID
 	})
 	for _, answer := range ua {
-		if answer.Status == store.UserAnswerStatusForgot || answer.Status == store.UserAnswerStatusRemember {
-			var res string
-			switch answer.Status {
-			case store.UserAnswerStatusForgot:
-				res = "Забыл"
-			case store.UserAnswerStatusRemember:
-				res = "Вспомнил"
-			}
+		if answer.Status == enum.UserAnswerStatusForgot || answer.Status == enum.UserAnswerStatusRemember {
 			msgs = append(msgs, fmt.Sprintf(
 				"%d. %s. %s.",
-				answer.UID, res, strings.TrimSpace(answer.Question),
+				answer.UID, answer.Status.Condition(), strings.TrimSpace(answer.Question),
 			))
 		}
 	}
@@ -121,11 +113,7 @@ func (s *Service) getUserRecommendationsByTestSessionID(user *store.User, id int
 		return err
 	}
 	s.store.Commit(ctx)
-	s.events <- Event{
-		ID:    user.ID,
-		Event: "get-recommendations-end",
-		Data:  ts.Recommendations.V,
-	}
+	ch <- []byte("<end>")
 	s.metrics.AppGeneratedRecommendationsCountInc()
 	return nil
 }

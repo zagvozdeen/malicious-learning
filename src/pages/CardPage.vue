@@ -41,27 +41,26 @@
         </div>
         <span class="h-px w-full bg-gray-500/20" />
         <div
-          v-if="loadingResults"
+          v-if="loadingResults && !ts.recommendations"
           class="flex flex-col gap-4 my-2 p-4"
         >
           <span class="text-center font-bold">Рекомендации рассчитываются</span>
           <AppSpinner />
         </div>
         <div
-          v-else
+          v-if="ts.recommendations"
           class="p-4"
         >
           <div
-            v-if="ts.recommendations"
             v-html="ts.recommendations"
             class="text-justify"
           />
-          <div
-            v-else
-            class="text-center font-medium"
-          >
-            Не удалось получить рекомендации, пожалуйста, попробуйте начать новый тест чтобы получить рекомендации
-          </div>
+        </div>
+        <div
+          v-else
+          class="p-4 text-center font-medium"
+        >
+          Не удалось получить рекомендации, пожалуйста, попробуйте начать новый тест чтобы получить рекомендации
         </div>
         <span class="h-px w-full bg-gray-500/20" />
         <div class="grid sm:grid-cols-10 grid-cols-5 gap-2 p-4">
@@ -205,6 +204,7 @@ const updateUserAnswerStatus = (uuid: string, status: UserAnswerStatus) => {
     notify.warn('Данные ещё загружаются, подождите, пожалуйста')
     return
   }
+
   fetcher
     .updateUserAnswer(uuid, status)
     .then(data => {
@@ -219,6 +219,39 @@ const updateUserAnswerStatus = (uuid: string, status: UserAnswerStatus) => {
 
           if (!ts.value.is_active) {
             notify.info('Вы успешно прошли весь тест, поздравляю!')
+
+            fetcher
+              .getChanges()
+              .then(async (response) => {
+                if (!response.body) {
+                  throw new Error('ReadableStream not supported')
+                }
+
+                const reader = response.body.getReader()
+                const decoder = new TextDecoder('UTF-8')
+
+                while (true) {
+                  const { done, value } = await reader.read()
+                  if (done) {
+                    loadingResults.value = false
+                    break
+                  }
+
+                  const chunk = decoder.decode(value)
+                  switch (chunk) {
+                  case '<start>':
+                    loadingResults.value = true
+                    break
+                  case '<end>':
+                    loadingResults.value = false
+                    break
+                  default:
+                    if (ts.value) {
+                      ts.value.recommendations = chunk
+                    }
+                  }
+                }
+              })
           }
         }
       }
@@ -231,20 +264,6 @@ const onClickRememberButton = () => {
 
 const onClickForgetButton = () => {
   updateUserAnswerStatus(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
-}
-
-const handleRecommendationsEnd = (msg: MessageEvent) => {
-  loadingResults.value = false
-  if (ts.value) {
-    ts.value.recommendations = msg.data
-  }
-}
-
-const handleRecommendationsStart = (msg: MessageEvent) => {
-  loadingResults.value = true
-  if (ts.value) {
-    ts.value.recommendations = msg.data
-  }
 }
 
 const onArticleClick = (e: unknown) => {
@@ -281,18 +300,12 @@ onMounted(() => {
       router.push({ name: 'main' })
     })
   }
-
-  state.getES()?.addEventListener('get-recommendations-start', handleRecommendationsStart)
-  state.getES()?.addEventListener('get-recommendations-end', handleRecommendationsEnd)
 })
 
 onUnmounted(() => {
   if (state.isTelegramEnv()) {
     window.Telegram.WebApp.BackButton.hide()
   }
-
-  state.getES()?.removeEventListener('get-recommendations-start', handleRecommendationsStart)
-  state.getES()?.removeEventListener('get-recommendations-end', handleRecommendationsEnd)
 })
 </script>
 

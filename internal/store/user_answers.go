@@ -2,41 +2,20 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
-
-type UserAnswerStatus string
-
-const (
-	UserAnswerStatusNull     UserAnswerStatus = "null"
-	UserAnswerStatusRemember UserAnswerStatus = "remember"
-	UserAnswerStatusForgot   UserAnswerStatus = "forgot"
-)
-
-func ParseUserAnswerStatus(s string) (UserAnswerStatus, error) {
-	switch s {
-	case string(UserAnswerStatusNull):
-		return UserAnswerStatusNull, nil
-	case string(UserAnswerStatusRemember):
-		return UserAnswerStatusRemember, nil
-	case string(UserAnswerStatusForgot):
-		return UserAnswerStatusForgot, nil
-	default:
-		return "", fmt.Errorf("invalid user answer status: %s", s)
-	}
-}
 
 type UserAnswer struct {
-	ID            int              `json:"id"`
-	UUID          string           `json:"uuid"`
-	CardID        int              `json:"card_id"`
-	TestSessionID int              `json:"test_session_id"`
-	Status        UserAnswerStatus `json:"status"`
-	CreatedAt     time.Time        `json:"created_at"`
-	UpdatedAt     time.Time        `json:"updated_at"`
+	ID            int                   `json:"id"`
+	UUID          string                `json:"uuid"`
+	CardID        int                   `json:"card_id"`
+	TestSessionID int                   `json:"test_session_id"`
+	Status        enum.UserAnswerStatus `json:"status"`
+	CreatedAt     time.Time             `json:"created_at"`
+	UpdatedAt     time.Time             `json:"updated_at"`
 }
 
 type FullUserAnswer struct {

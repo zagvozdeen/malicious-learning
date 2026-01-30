@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/zagvozdeen/malicious-learning/internal/store"
+	"github.com/zagvozdeen/malicious-learning/internal/store/enum"
 )
 
 type createTestSessionRequest struct {
@@ -79,7 +80,7 @@ func (s *Service) createTestSession(r *http.Request, user *store.User) Response 
 		answers = append(answers, store.UserAnswer{
 			UUID:      uid.String(),
 			CardID:    card.ID,
-			Status:    store.UserAnswerStatusNull,
+			Status:    enum.UserAnswerStatusNull,
 			CreatedAt: now,
 			UpdatedAt: now,
 		})

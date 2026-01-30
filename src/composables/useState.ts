@@ -4,7 +4,6 @@ const state = {
   tma: window.Telegram?.WebApp?.initData || null,
   token: localStorage.getItem('token'),
   apiUrl: import.meta.env.VITE_API_URL,
-  es: null as EventSource | null,
   rootClasses: ref<string>('max-w-md'),
 }
 
@@ -24,10 +23,6 @@ export const useState = () => {
       localStorage.removeItem('token')
       state.token = null
     },
-    setES: (es: EventSource | null) => {
-      state.es = es
-    },
-    getES: () => state.es,
     getRootClasses: state.rootClasses,
     setRootClasses: (v: string) => {
       state.rootClasses.value = v

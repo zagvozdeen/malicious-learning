@@ -2,7 +2,6 @@ import '@/style.css'
 import { createApp, h } from 'vue'
 import { useState } from '@/composables/useState.ts'
 import { createRouter, createWebHistory, RouterView } from 'vue-router'
-import { useEvents } from '@/composables/useEvents.ts'
 import CardPage from '@/pages/CardPage.vue'
 import MainPage from '@/pages/MainPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
@@ -10,7 +9,7 @@ import StatsPage from '@/pages/StatsPage.vue'
 import CardsPage from '@/pages/CardsPage.vue'
 import NotificationProvider from '@/components/NotificationProvider.vue'
 import CreateTestSessionPage from '@/pages/CreateTestSessionPage.vue'
-import { darkTheme, NConfigProvider } from 'naive-ui'
+import { darkTheme, NConfigProvider, NLoadingBarProvider } from 'naive-ui'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,8 +24,6 @@ const router = createRouter({
 })
 
 const state = useState()
-
-useEvents().getEventSource()
 
 router.beforeEach((to, _from, next) => {
   if (state.isTelegramEnv()) {
@@ -45,5 +42,6 @@ createApp({
     class: `mx-auto px-4 ${state.getRootClasses.value}`,
   }, h(NConfigProvider, {
     theme: darkTheme,
-  }, () => h(NotificationProvider, () => h(RouterView)))),
+  }, () => h(NotificationProvider, () => h(NLoadingBarProvider, () => h(RouterView)))),
+  ),
 }).use(router).mount('#app')
