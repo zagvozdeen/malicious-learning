@@ -90,7 +90,7 @@ func (s *Store) GetCards(ctx context.Context, courseSlug string, moduleIDs []int
 	sql := fmt.Sprintf(
 		"SELECT c.id, c.uid, c.uuid, c.question, c.answer, c.module_id, c.is_active, c.hash, c.created_at, c.updated_at FROM cards c JOIN courses co ON co.id = c.course_id WHERE c.is_active = true AND c.module_id in (%s) AND co.slug = $%d ORDER BY c.uid",
 		strings.Join(pattern, ","),
-		len(args)+1,
+		len(args),
 	)
 	rows, err := s.querier(ctx).Query(ctx, sql, args...)
 	if err != nil {
