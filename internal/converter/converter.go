@@ -130,6 +130,7 @@ func Run(ctx context.Context, storage store.Storage) error {
 			}
 			extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
 			p := parser.NewWithExtensions(extensions)
+			registerSpoiler(p)
 			doc := p.Parse(b)
 			renderer := html.NewRenderer(html.RendererOptions{
 				Flags: html.CommonFlags | html.HrefTargetBlank,
@@ -139,6 +140,14 @@ func Run(ctx context.Context, storage store.Storage) error {
 							_, _ = io.WriteString(w, `<div class="table-wrapper"><table>`)
 						} else {
 							_, _ = io.WriteString(w, `</table></div>`)
+						}
+						return ast.GoToNext, true
+					}
+					if _, ok := node.(*Spoiler); ok {
+						if entering {
+							_, _ = io.WriteString(w, `<span class="spoiler">`)
+						} else {
+							_, _ = io.WriteString(w, `</span>`)
 						}
 						return ast.GoToNext, true
 					}

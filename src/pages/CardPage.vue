@@ -1,6 +1,5 @@
 <template>
   <div
-    ref="swipeDiv"
     class="min-h-dvh w-full flex items-center justify-center"
     :class="{
       'pb-34': ts && ts.is_active,
@@ -27,7 +26,8 @@
         <template #default>
           <article
             v-html="currentQuestion.answer"
-            class="m-6 text-justify flex flex-col gap-2 overflow-x-hidden"
+            class="m-6 text-justify flex flex-col gap-2"
+            @click="onArticleClick"
           />
         </template>
       </ExamCard>
@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import ExamCard from '@/components/ExamCard.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFetch } from '@/composables/useFetch.ts'
@@ -169,9 +169,6 @@ const loading = ref(true)
 const loadingResults = ref(false)
 const ts = ref<TestSession | null>(null)
 const questions = ref<FullUserAnswer[]>([])
-const swipeDiv = useTemplateRef('swipeDiv')
-let touchstartX = 0
-let touchendX = 0
 
 const onClickPrev = () => {
   if (currentQuestionIndex.value > 0) {
@@ -236,18 +233,6 @@ const onClickForgetButton = () => {
   updateUserAnswerStatus(currentQuestion.value.uuid, UserAnswerStatus.Forgot)
 }
 
-const handleGesture = () => {
-  const swipeDistance = touchendX - touchstartX
-
-  if (Math.abs(swipeDistance) > 100) {
-    if (swipeDistance > 0) {
-      onClickPrev()
-    } else {
-      onClickNext()
-    }
-  }
-}
-
 const handleRecommendationsEnd = (msg: MessageEvent) => {
   loadingResults.value = false
   if (ts.value) {
@@ -259,6 +244,17 @@ const handleRecommendationsStart = (msg: MessageEvent) => {
   loadingResults.value = true
   if (ts.value) {
     ts.value.recommendations = msg.data
+  }
+}
+
+const onArticleClick = (e: unknown) => {
+  if (e instanceof Event) {
+    if (e.target instanceof Element) {
+      const el = e.target.closest('.spoiler')
+      if (el && !el.classList.contains('_show')) {
+        el.classList.add('_show')
+      }
+    }
   }
 }
 
@@ -278,16 +274,6 @@ onMounted(() => {
         loading.value = false
       }
     })
-
-  if (swipeDiv.value) {
-    swipeDiv.value.addEventListener('touchstart', (e) => {
-      touchstartX = e.changedTouches[0]?.screenX || 0
-    })
-    swipeDiv.value.addEventListener('touchend', (e) => {
-      touchendX = e.changedTouches[0]?.screenX || 0
-      handleGesture()
-    })
-  }
 
   if (state.isTelegramEnv()) {
     window.Telegram.WebApp.BackButton.show()
@@ -311,7 +297,22 @@ onUnmounted(() => {
 </script>
 
 <style>
+.spoiler {
+  filter: blur(4px);
+  transition: filter 0.1s ease-out;
+  cursor: pointer;
+
+  &._show {
+    filter: blur(0px);
+    cursor: text;
+  }
+}
+
 article {
+  ul, ol {
+    list-style-position: inside;
+  }
+
   pre {
     max-width: 100%;
     overflow-x: auto;
