@@ -16,9 +16,9 @@ import (
 
 const template = `---
 name: 
-module: 
+module: Практика
 tags:
-  - грейды
+  - авито
 ---
 `
 
