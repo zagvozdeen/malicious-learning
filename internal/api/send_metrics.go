@@ -51,7 +51,7 @@ func (s *Service) sendMetrics(new analytics.Snapshot, old analytics.Snapshot) {
 		fmt.Sprintf("– *Создано рекомендаций\\:* %s", compare(new.AppGeneratedRecommendationsCount, old.AppGeneratedRecommendationsCount)),
 		fmt.Sprintf("– *Обновлено ответов\\:* %s", compare(new.AppUpdatedUserAnswersCount, old.AppUpdatedUserAnswersCount)),
 		fmt.Sprintf("– *Начато тестовых сессий\\:* %s", compare(new.AppCreatedTestSessionsCount, old.AppCreatedTestSessionsCount)),
-		"", "**Статистика по страницам\\:**\n",
+		"", "*Статистика по страницам\\:*\n",
 	}
 	lines = append(lines, getAppResponsesTotalDiff(new, old)...)
 	_, err := s.bot.SendMessage(s.ctx, &bot.SendMessageParams{
@@ -75,9 +75,9 @@ func getAppResponsesTotalDiff(new analytics.Snapshot, old analytics.Snapshot) []
 	r := make([]string, 0, len(new.AppResponsesTotal))
 	for path, count := range new.AppResponsesTotal {
 		if diff := count - old.AppResponsesTotal[path]; diff != 0 {
-			r = append(r, fmt.Sprintf("– *%s:* %d \\(\\+%d\\)", bot.EscapeMarkdown(path), count, diff))
+			r = append(r, fmt.Sprintf("– *%s\\:* %d \\(\\+%d\\)", bot.EscapeMarkdown(path), count, diff))
 		} else {
-			r = append(r, fmt.Sprintf("– *%s:* %d", bot.EscapeMarkdown(path), count))
+			r = append(r, fmt.Sprintf("– *%s\\:* %d", bot.EscapeMarkdown(path), count))
 		}
 	}
 	return r
