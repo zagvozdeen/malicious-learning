@@ -47,7 +47,7 @@ func (s *Service) sendMetrics(new analytics.Snapshot, old analytics.Snapshot) {
 	var lines = []string{
 		"*Вот сводка за последний час\\:*\n",
 		fmt.Sprintf("– *Создано пользователей\\:* %s", compare(new.AppUsersCreatedCount, old.AppUsersCreatedCount)),
-		fmt.Sprintf("– *Отправлено не-сообщений\\:* %s", compare(new.AppNotMessageUpdateCount, old.AppNotMessageUpdateCount)),
+		fmt.Sprintf("– *Отправлено не\\-сообщений\\:* %s", compare(new.AppNotMessageUpdateCount, old.AppNotMessageUpdateCount)),
 		fmt.Sprintf("– *Создано рекомендаций\\:* %s", compare(new.AppGeneratedRecommendationsCount, old.AppGeneratedRecommendationsCount)),
 		fmt.Sprintf("– *Обновлено ответов\\:* %s", compare(new.AppUpdatedUserAnswersCount, old.AppUpdatedUserAnswersCount)),
 		fmt.Sprintf("– *Начато тестовых сессий\\:* %s", compare(new.AppCreatedTestSessionsCount, old.AppCreatedTestSessionsCount)),
