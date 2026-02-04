@@ -24,7 +24,7 @@ func (a *Analytics) close() {
 		a.log.Warn("Failed to marshal metrics to file", slog.Any("err", err))
 		return
 	}
-	err = os.WriteFile("metrics.json", b, 0644)
+	err = os.WriteFile("metrics.json", b, 0o644)
 	if err != nil {
 		a.log.Warn("Failed to open metrics file", slog.Any("err", err))
 		return
