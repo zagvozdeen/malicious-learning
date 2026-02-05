@@ -1,12 +1,9 @@
 package analytics
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"maps"
-	"strconv"
 	"sync"
 	"sync/atomic"
 )
@@ -31,22 +28,13 @@ type Snapshot struct {
 	AppResponsesTotal                map[string]int64 `json:"app_responses_total"`
 }
 
-func (c *Snapshot) Hash() string {
-	hasher := sha256.New()
-	hasher.Write([]byte(strconv.FormatInt(c.AppUsersCreatedCount, 10)))
-	hasher.Write([]byte{0})
-	hasher.Write([]byte(strconv.FormatInt(c.AppNotMessageUpdateCount, 10)))
-	hasher.Write([]byte{0})
-	hasher.Write([]byte(strconv.FormatInt(c.AppGeneratedRecommendationsCount, 10)))
-	hasher.Write([]byte{0})
-	hasher.Write([]byte(strconv.FormatInt(c.AppUpdatedUserAnswersCount, 10)))
-	hasher.Write([]byte{0})
-	hasher.Write([]byte(strconv.FormatInt(c.AppCreatedTestSessionsCount, 10)))
-	hasher.Write([]byte{0})
-	for path, count := range c.AppResponsesTotal {
-		hasher.Write([]byte(fmt.Sprintf("%s - %d", path, count)))
-	}
-	return hex.EncodeToString(hasher.Sum(nil))
+func (s Snapshot) Equal(snapshot Snapshot) bool {
+	return maps.Equal(s.AppResponsesTotal, snapshot.AppResponsesTotal) &&
+		s.AppUsersCreatedCount == snapshot.AppUsersCreatedCount &&
+		s.AppNotMessageUpdateCount == snapshot.AppNotMessageUpdateCount &&
+		s.AppGeneratedRecommendationsCount == snapshot.AppGeneratedRecommendationsCount &&
+		s.AppUpdatedUserAnswersCount == snapshot.AppUpdatedUserAnswersCount &&
+		s.AppCreatedTestSessionsCount == snapshot.AppCreatedTestSessionsCount
 }
 
 type Analytics struct {

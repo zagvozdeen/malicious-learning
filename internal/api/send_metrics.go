@@ -40,7 +40,7 @@ func (s *Service) startSendingMetrics() error {
 }
 
 func (s *Service) sendMetrics(new analytics.Snapshot, old analytics.Snapshot) {
-	if new.Hash() == old.Hash() {
+	if new.Equal(old) {
 		s.log.Info("Skip sending stats due to there is no changes")
 		return
 	}
